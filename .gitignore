@@ -1,0 +1,4 @@
+node_modules/
+dist/
+tests/ultima_captura.png
+.claude/settings.local.json

@@ -1,0 +1,12 @@
+{
+  "name": "maestro-ajedrez",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App para aprender aperturas de ajedrez: lecciones, práctica guiada y exámenes con repetición espaciada.",
+  "scripts": {
+    "validate": "node scripts/validate.js",
+    "build": "node scripts/validate.js && node scripts/build.js",
+    "serve": "node scripts/build.js && node scripts/serve.js",
+    "icons": "node scripts/icons.js"
+  }
+}
