@@ -14,7 +14,7 @@ for (const f of fs.readdirSync(path.join(root, 'assets/pieces')).filter(f => f.e
 }
 
 const head = rd('src/head.html'), sw = rd('src/sw.js');
-const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), rd('src/app.js')].join('\n');
+const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), rd('src/school.js'), rd('src/app.js')].join('\n');
 
 // La versión depende del contenido: si nada cambió, el service worker no se reinstala.
 const v = crypto.createHash('sha256').update(head + body + sw).digest('hex').slice(0, 10);

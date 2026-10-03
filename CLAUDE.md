@@ -27,6 +27,7 @@ Sin dependencias de npm: chess.js 0.10.3 está vendorizado en `vendor/`.
 ```
 src/head.html      HTML base + todo el CSS (tokens de color oscuro por defecto y claro en :root; fuente Nunito)
 src/data.js        const OPENINGS = [...]  → los repertorios (lo que más se edita)
+src/school.js      const SCHOOL = [...]    → módulos de la Escuela para principiantes (pasos de teoría y ejercicios)
 src/app.js         lógica: índice, tablero, lección, práctica, examen, progreso, navegación
 src/sw.js          service worker de la PWA (build.js completa VERSION y FONT_CSS)
 src/manifest.webmanifest
@@ -43,7 +44,7 @@ dist/              build final (no se versiona: lo arma el workflow)
 ## Modelo de datos (src/data.js)
 
 ```js
-{ id, name, short?, cover?, side: "w"|"b", first, sub, intro,   // short = nombre corto (chips); cover = plies de la portada
+{ id, name, short?, cover?, level?, side: "w"|"b", first, sub, intro,   // short = nombre corto (chips); cover = plies de la portada; level:"basico" = aparece en «Para empezar»
   groups: [{ id, name, desc }],
   lines: [{ id, group, name,
             moves: "e4 c6 d4 d5 ...",      // SAN separadas por espacio, desde la posición inicial
@@ -59,25 +60,38 @@ dist/              build final (no se versiona: lo arma el workflow)
 
 Las transposiciones se aprovechan a propósito: posiciones idénticas comparten nodo (clave = FEN sin contadores de jugadas).
 
+## Escuela (src/school.js)
+
+```js
+{ id, title, icon: "wN", desc, steps: [
+  { t: "info"|"move"|"tap", h, text, fen? | moves?, marks?: { e4: "g"|"r"|"y"|"b" }, arrows?: ["e2e4"],
+    sol?: ["Nf3", ...] | goal?: "mate", ok?, hint?,     // move
+    targets?: ["e4"] | from?: "d4", need?: 4 } ] }     // tap (from = jugadas legales de esa pieza)
+```
+
+validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que no mueve no esté en jaque, soluciones legales y al menos una jugada que cumpla el objetivo. En `move` se compara la SAN sin `+#`; la coronación es siempre a dama. Progreso en `maestro-ajedrez-school` (`{modId: {done, ex: {paso: 1}}}`).
+
 ## Arquitectura de app.js
 
 - `buildIndex(op)` → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
 - **Tablero propio** (`Board`): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
 - **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
-- **Navegación**: barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`, `tab`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
+- **Navegación**: barra inferior fija `#nav` (Inicio · Escuela · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|school|op, `tab`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
 - **Selección visual**: las variantes se eligen con tarjetas de mini tablero (`mini(arr,n,orient)`, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
 - **Inicio**: tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
+- **Escuela** (`escuela()`): lista de módulos y aperturas «Para empezar»; cada módulo recorre pasos con el tablero común. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
 - **Lección**: recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
 - **Práctica**: el rival juega solo (480 ms). Si el usuario se equivoca dos veces, se marca la jugada correcta. El modo `__all` elige al azar entre `opp[clave]`.
 - **Examen**: 10 posiciones elegidas por prioridad de caja baja y atraso (con algo de azar), con un intento cada una. Se puede filtrar por grupo.
 - **Progreso / repetición espaciada**: sistema Leitner de cajas 0–6 con `INTERVAL` en milisegundos. Acertar suma 1 caja y fallar vuelve a 0. "Dominado" = caja ≥ 3.
-- Persistencia: `localStorage['maestro-ajedrez-v1']`. Hay una migración de claves viejas sin prefijo hacia `caro-kann|`. El tema (auto/claro/oscuro) va en `maestro-ajedrez-theme`, la última versión vista en `maestro-ajedrez-build`, la última apertura abierta en `maestro-ajedrez-op` y la racha en `maestro-ajedrez-days`.
+- Persistencia: `localStorage['maestro-ajedrez-v1']`. Hay una migración de claves viejas sin prefijo hacia `caro-kann|`. El tema (auto/claro/oscuro) va en `maestro-ajedrez-theme`, la última versión vista en `maestro-ajedrez-build`, la última apertura abierta en `maestro-ajedrez-op`, la racha en `maestro-ajedrez-days` y la Escuela en `maestro-ajedrez-school`.
 - En el inicio, cada apertura muestra cuántas posiciones toca repasar (`stats(keys)` → `{due, fresh}`).
 
 ## PWA y actualizaciones
 
 - `build.js` inyecta `const BUILD={v,date}`. `v` es un hash del contenido, así que el service worker solo cambia si cambió algo. Si `v` difiere del último visto, aparece un aviso "App actualizada".
 - `sw.js`: `index.html` va **red primero**, con un timeout de 3,5 s que cae a la caché; así, cada vez que se abre con internet baja lo último. Los íconos y el manifest van caché primero. Las Google Fonts se precachean en `install` (CSS + woff2), así funcionan sin conexión.
+- iPhone: `head.html` tiene `apple-touch-icon` (icons/icon-180.png) y las meta `apple-mobile-web-app-*`, porque Safari no siempre toma los íconos del manifest.
 - El manifest y el service worker se registran solo si la página se sirve por http(s) fuera de claude.ai. Abriendo el archivo suelto o como artifact, la app funciona igual pero sin PWA.
 - Flujo de actualización: editar → `npm run build` (valida) → commit → `git push`. GitHub Actions publica en ~1 minuto y el celular toma la versión nueva la próxima vez que se abre con conexión.
 - El progreso vive en el `localStorage` del origen de GitHub Pages. Es independiente del artifact y de otros navegadores. Gianni aceptó perder el progreso anterior al migrar.
@@ -105,6 +119,11 @@ Las transposiciones se aprovechan a propósito: posiciones idénticas comparten 
 - Principal: 1.d4 f5 2.g3, con ...Qe8, ...a5 y ...Na6-c5.
 - Transposiciones: 2.c4, 1.c4, 1.Nf3 y 1.g3.
 - Anti-Holandesas: Staunton 2.e4 (con 4.Bg5 y 4.f3), 2.Bg5 y 2.Nc3.
+
+**Para empezar (level: "basico")**, pensadas para principiantes:
+- Italiana con blancas (7 variantes): Giuoco Pianissimo 4.c3 Nf6 5.d3, contra 3...Nf6 4.d3, Húngara, trampa 3...Nd4, Philidor y Petrov.
+- Juego abierto 1...e5 con negras (16 variantes): Italiana con ...Bc5 (incluye 5.d4 y Evans declinado), Ruy López Cerrada y Cambio, Escocesa y Cuatro Caballos (con el truco 4.Bc4 Nxe4), Pastor, Gambito de Rey declinado con 2...Bc5, Apertura del Centro y Viena (coincide con las líneas de Viena de Gianni).
+- Gambito de Dama Declinado con negras (10 variantes): Ortodoxa con la liberación de Capablanca, Cambio (Carlsbad), 4.Bf4, Catalana abierta, y ...c5 contra Londres y Colle.
 
 ## Advertencias sobre la teoría
 

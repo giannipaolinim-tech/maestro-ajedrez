@@ -170,6 +170,8 @@ function toast(msg){
 /* ---------- Íconos ---------- */
 const IC={
   home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
+  escuela:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>',
+  check:'<path d="M5 12l5 5 9-10"/>',
   leccion:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
   practica:'<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/>',
   examen:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
@@ -256,19 +258,20 @@ document.addEventListener('keydown',e=>{if(keyHandler&&!e.altKey&&!e.ctrlKey&&!e
 const TABS=[['leccion','Aprender'],['practica','Practicar'],['examen','Examen'],['progreso','Progreso']];
 const TAB_NAME={leccion:'Aprender',practica:'Practicar',examen:'Examen',progreso:'Progreso'};
 function renderNav(){
-  const cur=state.view==='home'?'home':state.tab;
-  $('#nav').innerHTML=[['home','Inicio']].concat(TABS).map(t=>'<button data-t="'+t[0]+'"'+(cur===t[0]?' class="on" aria-current="page"':'')+'>'+ico(t[0])+'<span>'+t[1]+'</span></button>').join('');
+  const cur=state.view==='home'?'home':state.view==='school'?'escuela':state.tab;
+  $('#nav').innerHTML=[['home','Inicio'],['escuela','Escuela']].concat(TABS).map(t=>'<button data-t="'+t[0]+'"'+(cur===t[0]?' class="on" aria-current="page"':'')+'>'+ico(t[0])+'<span>'+t[1]+'</span></button>').join('');
 }
 $('#nav').onclick=e=>{const b=e.target.closest('[data-t]'); if(b) goTab(b.dataset.t);};
 function goTab(t){
   if(t==='home'){ if(state.view==='home') return; if(state.d>0) history.go(-state.d); else nav({view:'home',sub:null}); return; }
-  if(state.view==='home'){ nav({view:'op',tab:t,sub:null,grp:null},true); return; }
-  if(t===state.tab){
-    if(state.sub){ if(state.tab==='examen') X=null; if(state.d>1) history.go(-(state.d-1)); else nav({sub:null}); }
+  const target=t==='escuela'?{view:'school',sub:null}:{view:'op',tab:t,sub:null};
+  if(state.view==='home'){ nav(Object.assign(target,{grp:null}),true); return; }
+  if(t==='escuela'?state.view==='school':(state.view==='op'&&t===state.tab)){
+    if(state.sub){ if(state.view==='op'&&state.tab==='examen') X=null; if(state.d>1) history.go(-(state.d-1)); else nav({sub:null}); }
     else window.scrollTo(0,0);
     return;
   }
-  nav({tab:t,sub:null});
+  nav(target);
 }
 
 function render(){
@@ -276,6 +279,7 @@ function render(){
   renderNav(); window.scrollTo(0,0);
   const app=$('#app');
   if(state.view==='home'){ app.innerHTML=homeHTML(); bindHome(); return; }
+  if(state.view==='school'){ app.innerHTML='<main id="pane"></main>'; escuela(); return; }
   lsSet(LAST_OP_KEY,OP.id);
   app.innerHTML=(state.sub?'':opBar())+'<main id="pane"></main>';
   app.querySelectorAll('.opbar [data-op]').forEach(b=>b.onclick=()=>{const o=OPENINGS.find(x=>x.id===b.dataset.op); if(o!==OP){setOp(o); nav({sub:null,grp:null});}});
@@ -297,17 +301,26 @@ function homeHTML(){
     '<div class="top-r"><span class="pill streak'+(sk.n?'':' off')+'" title="Días seguidos estudiando">'+ico('flame')+sk.n+(sk.n===1?' día':' días')+'</span>'+
     '<button id="theme" class="icon-btn" aria-label="'+THEME_LABEL[theme]+'. Cambiar a '+THEME_LABEL[thm].toLowerCase()+'">'+ico(theme)+'</button></div></header>'+
     '<section class="hero"><img class="wm" alt="" src="'+PIECES.wN+'"><h1>'+hero.h+'</h1><p>'+hero.p+'</p><button class="btn wh" id="heroGo" data-a="'+hero.a+'">'+ico('practica')+hero.b+'</button></section>'+
-    '<h2 class="sec">Tus aperturas<small>'+OPENINGS.length+'</small></h2>'+
-    '<section class="ops">'+OPENINGS.map(o=>{
-      const all=Object.keys(IDXS[o.id].nodes), m=mastery(all), st=stats(all);
-      const tag=st.due?'<span class="tag">'+st.due+' para repasar</span>':st.fresh===all.length?'<span class="tag new">Nueva</span>':st.fresh?'<span class="tag new">'+st.fresh+' por aprender</span>':'<span class="tag ok">Al día</span>';
-      return '<button class="op" data-op="'+o.id+'">'+mini(o.cov.arr,o.cov.n,o.side)+'<span class="op-b"><span class="op-n">'+esc(o.name)+'</span>'+
-        '<span class="side '+o.side+'"><i></i>Con '+sideName(o.side)+' · '+o.lines.length+' variantes</span>'+tag+
-        '<span class="meter"><span class="bar"><span style="width:'+m+'%"></span></span>'+m+'%</span></span></button>';
-    }).join('')+'</section>'+
+    schoolCard()+
+    '<h2 class="sec">Tus repertorios<small>'+REPS.length+'</small></h2><section class="ops">'+REPS.map(opCard).join('')+'</section>'+
+    '<h2 class="sec">Para empezar<small>'+BASICS.length+'</small></h2><section class="ops">'+BASICS.map(opCard).join('')+'</section>'+
     '<p class="credit">Piezas: cburnett (CC BY-SA 3.0), vía lichess. Motor de reglas: chess.js. '+VER+'</p>';
 }
+const REPS=OPENINGS.filter(o=>o.level!=='basico'), BASICS=OPENINGS.filter(o=>o.level==='basico');
+function opCard(o){
+  const all=Object.keys(IDXS[o.id].nodes), m=mastery(all), st=stats(all);
+  const tag=st.due?'<span class="tag">'+st.due+' para repasar</span>':st.fresh===all.length?'<span class="tag new">Nueva</span>':st.fresh?'<span class="tag new">'+st.fresh+' por aprender</span>':'<span class="tag ok">Al día</span>';
+  return '<button class="op" data-op="'+o.id+'">'+mini(o.cov.arr,o.cov.n,o.side)+'<span class="op-b"><span class="op-n">'+esc(o.name)+'</span>'+
+    '<span class="side '+o.side+'"><i></i>Con '+sideName(o.side)+' · '+o.lines.length+' variantes</span>'+tag+bar(m)+'</span></button>';
+}
+function bindOpCards(){document.querySelectorAll('.op[data-op]').forEach(b=>b.onclick=()=>{setOp(OPENINGS.find(o=>o.id===b.dataset.op)); nav({view:'op',tab:'leccion',sub:null,grp:null},true);});}
+function schoolCard(){
+  const d=SCHOOL.filter(m=>schoolDone(m.id)).length, nx=SCHOOL.find(m=>!schoolDone(m.id));
+  return '<h2 class="sec">Escuela<small>'+d+' de '+SCHOOL.length+'</small></h2><button class="op school" id="toSchool"><span class="sc-ic">'+ico('escuela')+'</span><span class="op-b">'+
+    '<span class="op-n">'+(nx?(d?'Seguí con: ':'Empezá por: ')+esc(nx.title):'Escuela completa')+'</span><span class="side">Reglas, etapas del juego, táctica, mates y finales</span>'+bar(Math.round(100*d/SCHOOL.length))+'</span></button>';
+}
 function bindHome(){
+  $('#toSchool').onclick=()=>nav({view:'school',sub:null,grp:null},true);
   document.querySelectorAll('.op[data-op]').forEach(b=>b.onclick=()=>{setOp(OPENINGS.find(o=>o.id===b.dataset.op)); nav({view:'op',tab:'leccion',sub:null,grp:null},true);});
   $('#theme').onclick=()=>{theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]; lsSet(THEME_KEY,theme); applyTheme(); toast(THEME_LABEL[theme]); render();};
   $('#heroGo').onclick=()=>{
@@ -351,10 +364,115 @@ function bindLines(fn){
 function studyLayout(title,sub,backLabel){
   return '<div class="study"><div class="bwrap"><div class="shead"><button id="listBack" class="backb" aria-label="'+(backLabel||'Volver a las variantes')+'">'+ico('back')+'</button>'+
     '<div><h3 class="lt">'+esc(title)+'</h3><span class="lsub">'+esc(sub)+'</span></div></div>'+
-    '<div id="board" class="board"></div><div id="ctrl" class="ctrl"></div></div>'+
+    '<div class="bstack"><div id="board" class="board"></div><svg id="ov" class="ov" viewBox="0 0 8 8" aria-hidden="true"></svg><svg id="ov2" class="ov top" viewBox="0 0 8 8" aria-hidden="true"></svg></div><div id="ctrl" class="ctrl"></div></div>'+
     '<aside class="sidep"><div id="info" class="info"></div><div id="moves" class="moves"></div></aside></div>';
 }
 const upOne=()=>state.d>1?history.back():nav({sub:null});
+
+/* ----- Escuela ----- */
+const SCHOOL_KEY='maestro-ajedrez-school';
+let sch={}; try{sch=JSON.parse(lsGet(SCHOOL_KEY)||'{}')||{};}catch(e){sch={};}
+const schRec=id=>sch[id]||(sch[id]={done:false,ex:{}});
+const saveSch=()=>lsSet(SCHOOL_KEY,JSON.stringify(sch));
+function schoolDone(id){return !!(sch[id]&&sch[id].done);}
+const exCount=m=>m.steps.filter(s=>s.t!=='info').length;
+const exSolved=m=>Object.keys((sch[m.id]||{}).ex||{}).length;
+const normSan=s=>s.replace(/[+#?!]/g,'');
+// Si el texto del acierto ya arranca con una exclamación, no le sumamos otra.
+const praise=(ok,pre)=>ok&&ok[0]==='¡'?ok:'<b>'+pre+'</b> '+(ok||'');
+// Marcas (debajo de las piezas) y flechas (encima) sobre el tablero.
+const MARK={g:'rgba(123,218,74,.6)',r:'rgba(255,92,108,.55)',y:'rgba(255,213,79,.65)',b:'rgba(91,140,255,.55)'};
+function overlay(marks,arrows){
+  const ov=$('#ov'), ar=$('#ov2'); if(!ov||!ar) return;
+  ov.innerHTML=Object.keys(marks||{}).map(q=>{const p=board.xy(q); return '<rect x="'+p[0]+'" y="'+p[1]+'" width="1" height="1" fill="'+(MARK[marks[q]]||MARK.y)+'"/>';}).join('');
+  ar.innerHTML='<defs><marker id="ah" viewBox="0 0 10 10" refX="4" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgba(255,159,67,.92)"/></marker></defs>'+
+    (arrows||[]).map(a=>{const p=board.xy(a.slice(0,2)), q=board.xy(a.slice(2,4)), x1=p[0]+.5, y1=p[1]+.5, x2=q[0]+.5, y2=q[1]+.5, d=Math.hypot(x2-x1,y2-y1), k=(d-.42)/d, j=.3/d;
+      return '<line x1="'+(x1+(x2-x1)*j).toFixed(3)+'" y1="'+(y1+(y2-y1)*j).toFixed(3)+'" x2="'+(x1+(x2-x1)*k).toFixed(3)+'" y2="'+(y1+(y2-y1)*k).toFixed(3)+'" stroke="rgba(255,159,67,.92)" stroke-width=".16" stroke-linecap="round" marker-end="url(#ah)"/>';}).join('');
+}
+function escuela(){
+  const pane=$('#pane');
+  if(!state.sub){
+    const d=SCHOOL.filter(m=>schoolDone(m.id)).length, nx=SCHOOL.find(m=>!schoolDone(m.id));
+    pane.innerHTML='<div class="ttl"><span class="ic escuela">'+ico('escuela')+'</span><h2>Escuela</h2></div>'+
+      '<p class="lead">Lo básico del ajedrez, paso a paso: reglas, cómo pensar en cada etapa de la partida, táctica, mates y finales. Cada módulo combina explicación y ejercicios en el tablero.</p>'+
+      '<div class="panel"><div class="big">'+ring(Math.round(100*d/SCHOOL.length))+'<div><h3>'+(nx?(d?'Seguí con: ':'Empezá por: ')+esc(nx.title):'¡Escuela completa!')+'</h3><p>'+d+' de '+SCHOOL.length+' módulos completados.</p></div></div>'+
+      '<button class="btn wide" id="goMod" data-mod="'+(nx||SCHOOL[0]).id+'">'+ico('practica')+(nx?(d?'Continuar':'Empezar'):'Repasar desde el principio')+'</button></div>'+
+      '<div class="path">'+SCHOOL.map((m,k)=>{const dn=schoolDone(m.id), ec=exCount(m);
+        return '<button class="mod'+(dn?' done':'')+(m===nx?' next':'')+'" data-mod="'+m.id+'"><span class="mnum">'+(dn?ico('check'):k+1)+'</span><img alt="" src="'+PIECES[m.icon]+'">'+
+          '<span class="mb"><b>'+esc(m.title)+'</b><span>'+esc(m.desc)+'</span><span class="who">'+m.steps.length+' pasos · '+Math.min(exSolved(m),ec)+' de '+ec+' ejercicios</span></span></button>';}).join('')+'</div>'+
+      '<h2 class="sec">Aperturas para empezar<small>'+BASICS.length+'</small></h2><p class="lead">Cuando termines los módulos, elegí una con blancas y una con negras: tienen lección, práctica y examen como las demás.</p>'+
+      '<section class="ops">'+BASICS.map(opCard).join('')+'</section>';
+    pane.querySelectorAll('[data-mod]').forEach(b=>b.onclick=()=>nav({sub:{mod:b.dataset.mod,step:0}},true));
+    bindOpCards(); return;
+  }
+  const m=SCHOOL.find(x=>x.id===state.sub.mod); if(!m){nav({sub:null}); return;}
+  const N=m.steps.length; let i=Math.max(0,Math.min(N-1,state.sub.step||0)), cur=null;
+  pane.innerHTML=studyLayout(m.title,'','Volver a la escuela');
+  $('#listBack').onclick=upOne;
+  $('#ctrl').innerHTML='<button data-a="prev" class="btn soft" aria-label="Paso anterior">'+ico('prev')+'</button><button data-a="next" class="btn bl x2" id="nextB"></button>';
+  $('#ctrl').onclick=e=>{const b=e.target.closest('[data-a]'); if(!b||b.disabled) return; if(b.dataset.a==='prev') go(i-1); else if(i<N-1) go(i+1); else finishMod();};
+  keyHandler=e=>{if(e.key==='ArrowRight'&&i<N-1){e.preventDefault(); go(i+1);} else if(e.key==='ArrowLeft'){e.preventDefault(); go(i-1);}};
+  const rec=schRec(m.id);
+  const okMove=(st,san,t)=>st.goal==='mate'?t.in_checkmate():st.sol.some(x=>normSan(x)===normSan(san));
+  function solution(){return cur.g.moves({verbose:true}).find(mv=>{const t=new Chess(cur.g.fen()); t.move(mv.san); return okMove(cur.st,mv.san,t);});}
+  function go(n){if(n<0||n>=N) return; i=n; state.sub.step=n; remember(); show();}
+  function finishMod(){rec.done=true; saveSch(); markDay(); toast('¡Módulo completado: '+m.title+'!'); upOne();}
+  function setNext(){
+    const b=$('#nextB'), open=cur.st.t!=='info'&&!cur.done&&!rec.ex[i];
+    b.className='btn x2 '+(open?'soft':'bl'); b.innerHTML=(i<N-1?(open?'Saltar':'Seguir'):'Terminar')+ico('next');
+    $('#ctrl [data-a="prev"]').disabled=i===0;
+    $('.lsub').textContent='Paso '+(i+1)+' de '+N;
+  }
+  function fb(cls,html){$('#fb').className='fb '+cls; $('#fb').innerHTML=html;}
+  board=new Board($('#board'),{orient:'w',
+    onMove:(from,to,dragged)=>{
+      if(!cur||cur.st.t!=='move'||cur.done) return;
+      const t=new Chess(cur.g.fen()), r=t.move({from,to,promotion:'q'}); if(!r) return;
+      if(okMove(cur.st,r.san,t)){
+        cur.done=true; rec.ex[i]=1; saveSch(); markDay();
+        board.set(t,{last:{from:r.from,to:r.to},flash:{sq:r.to,kind:'good'},anim:!dragged});
+        fb('good',praise(cur.st.ok,cur.st.goal==='mate'?'¡Jaque mate!':'¡Correcto!')); setNext(); return;
+      }
+      cur.tries++; buzz(70);
+      const sol=solution();
+      board.set(cur.g,{last:cur.last,flash:{sq:to,kind:'bad'},hint:cur.tries>=2&&sol?sol.from:null,canMove:true});
+      let msg=t.in_stalemate()?'<b>¡Ahogado!</b> El rival no está en jaque y no tiene jugadas: eso es tablas. Probá otra.':
+        cur.st.goal==='mate'?'<b>'+r.san+'</b> no da mate. Probá de nuevo.':'<b>'+r.san+'</b> no es la mejor. Probá de nuevo.';
+      if(cur.tries>=2&&cur.st.hint) msg+='<br>Pista: '+cur.st.hint;
+      if(cur.tries>=3) msg+='<br><button class="link-b" id="showSol">Ver la solución</button>';
+      fb('bad',msg);
+      const ss=$('#showSol'); if(ss) ss.onclick=()=>{const s2=solution(); if(!s2) return; const t2=new Chess(cur.g.fen()); t2.move(s2.san); cur.done=true;
+        board.set(t2,{last:{from:s2.from,to:s2.to},anim:true}); fb('','La solución era <b>'+s2.san+'</b>. '+(cur.st.ok||'')); setNext();};
+    },
+    onTap:e=>{
+      if(!cur||cur.st.t!=='tap'||cur.done) return;
+      const sq=board.sqAt(e.clientX,e.clientY); if(!sq) return;
+      if(cur.targets.includes(sq)){ cur.found.add(sq); board.set(cur.g,{last:cur.last}); }
+      else { buzz(50); board.set(cur.g,{last:cur.last,flash:{sq,kind:'bad'}}); }
+      const marks=Object.assign({},cur.st.marks); if(cur.st.from) marks[cur.st.from]='y'; cur.found.forEach(q=>{marks[q]='g';}); overlay(marks,null);
+      if(cur.found.size>=cur.need){ cur.done=true; rec.ex[i]=1; saveSch(); markDay(); fb('good',praise(cur.st.ok,'¡Bien!')); setNext(); }
+      else fb('',cur.targets.includes(sq)?'Van '+cur.found.size+' de '+cur.need+'.':'<b>'+sq+'</b> no. Van '+cur.found.size+' de '+cur.need+'.');
+    }});
+  function show(){
+    const st=m.steps[i], g=new Chess(); if(st.fen) g.load(st.fen); if(st.moves) st.moves.split(' ').forEach(x=>g.move(x));
+    const h=g.history({verbose:true}), lm=h.length?h[h.length-1]:null;
+    cur={st,g,last:lm?{from:lm.from,to:lm.to}:null,tries:0,done:st.t==='info',found:new Set(),targets:[],need:0};
+    board.orient=st.orient||(st.t==='info'?'w':g.turn());
+    const side=g.turn()==='w'?'blancas':'negras';
+    let html='<h3 class="sh">'+esc(st.h)+'</h3><p class="note">'+st.text+'</p>';
+    if(st.t==='move'){
+      board.set(g,{last:cur.last,canMove:true}); overlay(st.marks,null);
+      html+='<p class="turn">Juegan '+side+'</p><div id="fb" class="fb'+(rec.ex[i]?' good':'')+'">'+(rec.ex[i]?'Ya lo resolviste antes. ¿Te sale de nuevo?':'Mové una pieza en el tablero.')+'</div>';
+    } else if(st.t==='tap'){
+      cur.targets=st.targets||[...new Set(g.moves({square:st.from,verbose:true}).map(x=>x.to))];
+      cur.need=st.need||cur.targets.length;
+      board.set(g,{last:cur.last}); const mk=Object.assign({},st.marks); if(st.from) mk[st.from]='y'; overlay(mk,null);
+      html+='<div id="fb" class="fb">Tocá las casillas en el tablero. Van 0 de '+cur.need+'.</div>';
+    } else { board.set(g,{last:cur.last}); overlay(st.marks,st.arrows); }
+    $('#info').innerHTML=html; setNext();
+  }
+  show();
+}
 
 /* ----- Lección ----- */
 function leccion(){
