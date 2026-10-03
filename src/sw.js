@@ -5,7 +5,7 @@ const VERSION = '__VERSION__';
 const CACHE = 'maestro-' + VERSION;
 const FONTS = 'maestro-fonts';
 const FONT_CSS = '__FONT_CSS__';
-const CORE = ['index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CORE = ['index.html', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 async function cacheFonts() {
   try {
