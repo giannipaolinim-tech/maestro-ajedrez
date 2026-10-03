@@ -1,5 +1,5 @@
 const OPENINGS = [{ sub:"Repertorio con negras: Clásica 4...Bf5",
- id:"caro-kann", name:"Defensa Caro-Kann", side:"b", first:"1.e4 c6",
+ id:"caro-kann", name:"Defensa Caro-Kann", short:"Caro-Kann", side:"b", first:"1.e4 c6",
  intro:"Contra 1.e4, las negras preparan ...d5 apoyado por el peón de c6. Es una defensa sólida: estructura de peones sana y, a diferencia de la Francesa, el alfil de casillas blancas sale antes de cerrar la cadena con ...e6.",
  groups:[
   {id:"clasica", name:"Clásica (3.Nc3 / 3.Nd2)", desc:"Blancas mantienen la tensión central y las negras cambian en e4 para sacar el alfil a f5."},
@@ -119,7 +119,7 @@ const OPENINGS = [{ sub:"Repertorio con negras: Clásica 4...Bf5",
    notes:{3:"Negras juegan pasivo.",4:"Desarrollo con presión a e5.",6:"Transpone a una Philidor favorable para blancas.",8:"El alfil en c4 presiona f7.",10:"Enroque y a desarrollar el juego central."},
    plan:"Ventaja de espacio. Planes: a4 para frenar ...b5, Re1, h3 y Be3. Negras están sólidas pero apretadas."}
  ]},
-{id:"holandesa", name:"Holandesa Leningrado", side:"b", first:"1...f5 contra 1.d4, 1.c4, 1.Nf3 y 1.g3", sub:"Repertorio con negras: Leningrado",
+{id:"holandesa", name:"Holandesa Leningrado", short:"Holandesa", cover:8, side:"b", first:"1...f5 contra 1.d4, 1.c4, 1.Nf3 y 1.g3", sub:"Repertorio con negras: Leningrado",
  intro:"Con 1...f5 las negras controlan e4 y buscan juego de ataque en el flanco de rey. En la Leningrado el alfil va a g7, como en la India de Rey, y el plan típico es ...d6, ...Qe8 y ...e5.",
  groups:[
   {id:"principal", name:"Principal (1.d4 f5 2.g3)", desc:"El esquema fiancheto de blancas. Es la posición central del repertorio."},

@@ -10,17 +10,17 @@ with sync_playwright() as p:
     # Caro-Kann: lección + práctica
     pg.click('[data-op="caro-kann"]'); pg.click('[data-line="cl-main"]')
     for _ in range(6): pg.click('[data-a="next"]')
-    pg.click('[data-tab="practica"]'); pg.click('[data-line="cl-main"]'); pg.wait_for_timeout(700)
+    pg.click('#nav [data-t="practica"]'); pg.click('[data-line="cl-main"]'); pg.wait_for_timeout(700)
     pg.click('[data-sq="c7"]'); pg.click('[data-sq="c6"]'); pg.wait_for_timeout(700)
     # Viena con blancas
-    pg.click('#back'); pg.click('[data-op="viena"]'); pg.click('[data-tab="practica"]'); pg.click('[data-line="bc-bc5"]'); pg.wait_for_timeout(300)
+    pg.click('#nav [data-t="home"]'); pg.click('[data-op="viena"]'); pg.click('#nav [data-t="practica"]'); pg.click('[data-line="bc-bc5"]'); pg.wait_for_timeout(300)
     for a, z in [('e2', 'e4'), ('b1', 'c3'), ('f1', 'c4'), ('d1', 'g4')]:
         pg.click(f'[data-sq="{a}"]'); pg.click(f'[data-sq="{z}"]'); pg.wait_for_timeout(700)
     # Holandesa: repertorio completo + examen + progreso
-    pg.click('#back'); pg.click('[data-op="holandesa"]'); pg.click('[data-tab="practica"]'); pg.click('[data-line="__all"]'); pg.wait_for_timeout(800)
+    pg.click('#nav [data-t="home"]'); pg.click('[data-op="holandesa"]'); pg.click('#nav [data-t="practica"]'); pg.click('[data-line="__all"]'); pg.wait_for_timeout(800)
     pg.click('[data-sq="f7"]'); pg.click('[data-sq="f5"]'); pg.wait_for_timeout(800)
-    pg.click('[data-tab="examen"]'); pg.click('[data-g="all"]'); pg.wait_for_timeout(300)
-    pg.click('[data-tab="progreso"]')
+    pg.click('#nav [data-t="examen"]'); pg.click('[data-g="all"]'); pg.wait_for_timeout(300)
+    pg.click('#nav [data-t="progreso"]')
     pg.screenshot(path='tests/ultima_captura.png', full_page=True)
     b.close()
 print('Errores JS:', errs or 'ninguno')

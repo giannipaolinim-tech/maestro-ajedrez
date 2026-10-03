@@ -25,7 +25,7 @@ Sin dependencias de npm: chess.js 0.10.3 está vendorizado en `vendor/`.
 ## Estructura
 
 ```
-src/head.html      HTML base + todo el CSS (tokens de color claro/oscuro en :root)
+src/head.html      HTML base + todo el CSS (tokens de color oscuro por defecto y claro en :root; fuente Nunito)
 src/data.js        const OPENINGS = [...]  → los repertorios (lo que más se edita)
 src/app.js         lógica: índice, tablero, lección, práctica, examen, progreso, navegación
 src/sw.js          service worker de la PWA (build.js completa VERSION y FONT_CSS)
@@ -43,7 +43,7 @@ dist/              build final (no se versiona: lo arma el workflow)
 ## Modelo de datos (src/data.js)
 
 ```js
-{ id, name, side: "w"|"b", first, sub, intro,
+{ id, name, short?, cover?, side: "w"|"b", first, sub, intro,   // short = nombre corto (chips); cover = plies de la portada
   groups: [{ id, name, desc }],
   lines: [{ id, group, name,
             moves: "e4 c6 d4 d5 ...",      // SAN separadas por espacio, desde la posición inicial
@@ -63,12 +63,15 @@ Las transposiciones se aprovechan a propósito: posiciones idénticas comparten 
 
 - `buildIndex(op)` → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
 - **Tablero propio** (`Board`): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
-- **Navegación**: `nav(patch, push)` actualiza `state` y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña o de jugada reemplaza. `state.d` = profundidad, y ‹ hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
+- **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
+- **Navegación**: barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`, `tab`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
+- **Selección visual**: las variantes se eligen con tarjetas de mini tablero (`mini(arr,n,orient)`, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
+- **Inicio**: tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
 - **Lección**: recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
 - **Práctica**: el rival juega solo (480 ms). Si el usuario se equivoca dos veces, se marca la jugada correcta. El modo `__all` elige al azar entre `opp[clave]`.
 - **Examen**: 10 posiciones elegidas por prioridad de caja baja y atraso (con algo de azar), con un intento cada una. Se puede filtrar por grupo.
 - **Progreso / repetición espaciada**: sistema Leitner de cajas 0–6 con `INTERVAL` en milisegundos. Acertar suma 1 caja y fallar vuelve a 0. "Dominado" = caja ≥ 3.
-- Persistencia: `localStorage['maestro-ajedrez-v1']`. Hay una migración de claves viejas sin prefijo hacia `caro-kann|`. El tema (auto/claro/oscuro) va en `maestro-ajedrez-theme` y la última versión vista en `maestro-ajedrez-build`.
+- Persistencia: `localStorage['maestro-ajedrez-v1']`. Hay una migración de claves viejas sin prefijo hacia `caro-kann|`. El tema (auto/claro/oscuro) va en `maestro-ajedrez-theme`, la última versión vista en `maestro-ajedrez-build`, la última apertura abierta en `maestro-ajedrez-op` y la racha en `maestro-ajedrez-days`.
 - En el inicio, cada apertura muestra cuántas posiciones toca repasar (`stats(keys)` → `{due, fresh}`).
 
 ## PWA y actualizaciones

@@ -47,7 +47,7 @@ const keyOf=g=>OP.id+'|'+f4(g.fen());
 /* ---------- Progreso (repetición espaciada) ---------- */
 const INTERVAL=[0,5*60e3,60*60e3,8*3600e3,24*3600e3,3*86400e3,7*86400e3];
 function rec(k){return prog[k]||(prog[k]={box:0,last:0,ok:0,ko:0});}
-function grade(k,good){const r=rec(k); r.last=Date.now(); if(good){r.box=Math.min(6,r.box+1);r.ok++;} else {r.box=0;r.ko++;} save();}
+function grade(k,good){const r=rec(k); r.last=Date.now(); markDay(); if(good){r.box=Math.min(6,r.box+1);r.ok++;} else {r.box=0;r.ko++;} save();}
 function mastery(keys){if(!keys.length)return 0; let s=0; keys.forEach(k=>{s+=Math.min(3,(prog[k]||{box:0}).box)/3;}); return Math.round(100*s/keys.length);}
 // due = vistas que ya toca repasar; fresh = nunca vistas
 function stats(keys){const now=Date.now(); let due=0,fresh=0; keys.forEach(k=>{const r=prog[k]; if(!r) fresh++; else if(now-r.last>=INTERVAL[r.box]) due++;}); return {due,fresh};}
@@ -144,6 +144,7 @@ Board.prototype.draw=function(){
   this.el.innerHTML=h;
 };
 
+
 /* ---------- Utilidades ---------- */
 function moveList(arr,cur,clickable){
   let h='';
@@ -156,93 +157,225 @@ function moveList(arr,cur,clickable){
 function gameAt(arr,n){const g=new Chess(); let last=null; for(let i=0;i<n;i++){const r=g.move(arr[i]); last={from:r.from,to:r.to};} return {g,last};}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function groupName(id){return (OP.groups.find(g=>g.id===id)||{}).name||'';}
+const gShort=g=>g.name.split(' (')[0];
+const shortName=o=>o.short||o.name;
+// Etiqueta de la jugada número n (1-based) de una línea: "6.h4" o "3...Bf5".
+function plyLabel(arr,n){const i=n-1; return (Math.floor(i/2)+1)+(i%2===0?'.':'...')+arr[i];}
 function toast(msg){
   const old=$('.toast'); if(old) old.remove();
   const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t);
   setTimeout(()=>t.remove(),3500);
 }
 
+/* ---------- Íconos ---------- */
+const IC={
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
+  leccion:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  practica:'<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/>',
+  examen:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  progreso:'<path d="M6 20v-5M12 20V10M18 20V4"/>',
+  flame:'<path d="M12 2c.6 3.6 5.5 5.6 5.5 11.2A5.5 5.5 0 0 1 12 19a5.5 5.5 0 0 1-5.5-5.8c0-2.6 1.6-4 2.3-6.4 1.6 1.2 2.4 2.8 2.4 4.6 1.4-1.4 1.6-4.6.8-9.4z"/>',
+  light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  dark:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
+  first:'<path d="M6 5v14"/><path d="M18 6l-8 6 8 6z"/>',
+  prev:'<path d="M15 5l-7 7 7 7"/>',
+  next:'<path d="M9 5l7 7-7 7"/>',
+  last:'<path d="M18 5v14"/><path d="M6 6l8 6-8 6z"/>',
+  hint:'<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>',
+  restart:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  shuffle:'<path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>'
+};
+const ico=n=>'<svg class="i" viewBox="0 0 24 24" aria-hidden="true">'+IC[n]+'</svg>';
+
+/* ---------- Mini tableros (portadas de aperturas, familias y variantes) ---------- */
+(function(){const st=document.createElement('style'); st.textContent=Object.keys(PIECES).map(k=>'.mini i.'+k+'{background-image:url("'+PIECES[k]+'")}').join(''); document.head.appendChild(st);})();
+const MINI={};
+function mini(arr,n,orient){
+  const ck=orient+n+'|'+arr.slice(0,n).join(' '); if(MINI[ck]) return MINI[ck];
+  const {g,last}=gameAt(arr,n); let h='<div class="mini" aria-hidden="true">';
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const file=orient==='w'?FILES[c]:FILES[7-c], rank=orient==='w'?8-r:r+1, sq=file+rank, p=g.get(sq);
+    let cls=(FILES.indexOf(file)+rank)%2===1?'d':'l';
+    if(last&&(last.from===sq||last.to===sq)) cls+=' h';
+    if(p) cls+=' '+p.color+p.type.toUpperCase();
+    h+='<i class="'+cls+'"></i>';
+  }
+  return MINI[ck]=h+'</div>';
+}
+// Qué posición se muestra en cada portada:
+// - variante: justo después de la jugada que la separa de las demás;
+// - familia: la jugada que la separa de las otras familias, más lo que compartan sus variantes (hasta 3 plies);
+// - apertura: op.cover si está definido, si no lo que comparten todas sus líneas.
+function lcp(a,b){let i=0; while(i<a.length&&i<b.length&&a[i]===b[i]) i++; return i;}
+OPENINGS.forEach(op=>{
+  op.lines.forEach(l=>{let d=0; op.lines.forEach(o=>{if(o!==l) d=Math.max(d,lcp(l.arr,o.arr));}); l.key=Math.min(l.arr.length,d+1);});
+  op.groups.forEach(gr=>{
+    const ls=op.lines.filter(l=>l.group===gr.id); if(!ls.length) return;
+    const others=op.lines.filter(l=>l.group!==gr.id), a=ls[0].arr;
+    let d=0; ls.forEach(l=>others.forEach(o=>{d=Math.max(d,lcp(l.arr,o.arr));}));
+    let n=Math.min(a.length,d+1);
+    while(n<d+4&&n<a.length&&ls.every(l=>l.arr[n]===a[n])) n++;
+    gr.cov={arr:a,n};
+  });
+  let n=op.lines[0].arr.length; op.lines.forEach(l=>{n=Math.min(n,lcp(op.lines[0].arr,l.arr));});
+  op.cov={arr:op.lines[0].arr,n:op.cover||Math.max(n,2)};
+});
+
+/* ---------- Racha de días ---------- */
+const DAYS_KEY='maestro-ajedrez-days', LAST_OP_KEY='maestro-ajedrez-op';
+let days=[]; try{days=JSON.parse(lsGet(DAYS_KEY)||'[]')||[];}catch(e){days=[];}
+const dayStr=t=>{const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();};
+function markDay(){const t=dayStr(Date.now()); if(days[days.length-1]!==t){days.push(t); days=days.slice(-400); lsSet(DAYS_KEY,JSON.stringify(days));}}
+function streak(){
+  const set=new Set(days), d=new Date(); d.setHours(12,0,0,0); let t=d.getTime(), n=0;
+  const today=set.has(dayStr(t)); if(!today) t-=86400e3;
+  while(set.has(dayStr(t))){n++; t-=86400e3;}
+  return {n,today};
+}
+
 /* ---------- Navegación (con historial: el botón atrás de Android vuelve dentro de la app) ---------- */
-// d = profundidad en el historial (inicio = 0), para que ‹ vuelva directo al inicio.
-let state={view:'home',tab:'leccion',sub:null,d:0};
+// d = profundidad en el historial (inicio = 0), para que Inicio vuelva directo.
+// grp = familia elegida en los filtros de variantes.
+let state={view:'home',tab:'leccion',sub:null,grp:null,d:0};
 let board=null, timer=null, keyHandler=null;
 function clearTimer(){if(timer){clearTimeout(timer);timer=null;}}
-function snap(){return {view:state.view,op:OP.id,tab:state.tab,sub:state.sub?JSON.parse(JSON.stringify(state.sub)):null,d:state.d};}
+function snap(){return {view:state.view,op:OP.id,tab:state.tab,sub:state.sub?JSON.parse(JSON.stringify(state.sub)):null,grp:state.grp,d:state.d};}
 function restore(s){
-  if(!s||!s.view){state={view:'home',tab:'leccion',sub:null,d:0}; return;}
+  if(!s||!s.view){state={view:'home',tab:'leccion',sub:null,grp:null,d:0}; return;}
   const o=OPENINGS.find(x=>x.id===s.op); if(o){OP=o; IDX=IDXS[o.id];}
-  state={view:s.view,tab:s.tab||'leccion',sub:s.sub||null,d:s.d||0};
+  state={view:s.view,tab:s.tab||'leccion',sub:s.sub||null,grp:s.grp||null,d:s.d||0};
 }
 function remember(){try{history.replaceState(snap(),'');}catch(e){}}
 function nav(patch,push){Object.assign(state,patch); if(push) state.d++; try{history[push?'pushState':'replaceState'](snap(),'');}catch(e){} render();}
+function setOp(o){if(o!==OP){OP=o; IDX=IDXS[o.id]; P=null; X=null;}}
 window.addEventListener('popstate',e=>{restore(e.state); render();});
 document.addEventListener('keydown',e=>{if(keyHandler&&!e.altKey&&!e.ctrlKey&&!e.metaKey) keyHandler(e);});
 
+const TABS=[['leccion','Aprender'],['practica','Practicar'],['examen','Examen'],['progreso','Progreso']];
+const TAB_NAME={leccion:'Aprender',practica:'Practicar',examen:'Examen',progreso:'Progreso'};
+function renderNav(){
+  const cur=state.view==='home'?'home':state.tab;
+  $('#nav').innerHTML=[['home','Inicio']].concat(TABS).map(t=>'<button data-t="'+t[0]+'"'+(cur===t[0]?' class="on" aria-current="page"':'')+'>'+ico(t[0])+'<span>'+t[1]+'</span></button>').join('');
+}
+$('#nav').onclick=e=>{const b=e.target.closest('[data-t]'); if(b) goTab(b.dataset.t);};
+function goTab(t){
+  if(t==='home'){ if(state.view==='home') return; if(state.d>0) history.go(-state.d); else nav({view:'home',sub:null}); return; }
+  if(state.view==='home'){ nav({view:'op',tab:t,sub:null,grp:null},true); return; }
+  if(t===state.tab){
+    if(state.sub){ if(state.tab==='examen') X=null; if(state.d>1) history.go(-(state.d-1)); else nav({sub:null}); }
+    else window.scrollTo(0,0);
+    return;
+  }
+  nav({tab:t,sub:null});
+}
+
 function render(){
   clearTimer(); keyHandler=null; if(board) board.cancel(true);
+  renderNav(); window.scrollTo(0,0);
   const app=$('#app');
-  if(state.view==='home'){ app.innerHTML=homeHTML(); bindHome(); window.scrollTo(0,0); return; }
-  app.innerHTML=openingShell();
-  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ if(b.dataset.tab!==state.tab) nav({tab:b.dataset.tab,sub:null}); });
-  $('#back').onclick=()=>state.d>0?history.go(-state.d):nav({view:'home',sub:null});
+  if(state.view==='home'){ app.innerHTML=homeHTML(); bindHome(); return; }
+  lsSet(LAST_OP_KEY,OP.id);
+  app.innerHTML=(state.sub?'':opBar())+'<main id="pane"></main>';
+  app.querySelectorAll('.opbar [data-op]').forEach(b=>b.onclick=()=>{const o=OPENINGS.find(x=>x.id===b.dataset.op); if(o!==OP){setOp(o); nav({sub:null,grp:null});}});
   ({leccion:leccion,practica:practica,examen:examen,progreso:progreso})[state.tab]();
 }
 
+/* ----- Inicio ----- */
+let VER='';
 function homeHTML(){
-  return '<header class="home-h"><div class="home-top"><h1>Maestro</h1><button id="theme" class="chip">'+THEME_LABEL[theme]+'</button></div>'+
-  '<p class="lede">Elegí qué querés estudiar. Cada apertura tiene lecciones, práctica guiada y exámenes que repiten lo que fallás.</p></header>'+
-  '<section class="catalog">'+OPENINGS.map(o=>{
-    const all=Object.keys(IDXS[o.id].nodes), m=mastery(all), st=stats(all);
-    const status=st.due?'<b class="due">'+st.due+' para repasar</b>':(st.fresh===all.length?'Sin empezar':st.fresh?st.fresh+' posiciones nuevas':'Todo al día');
-    return '<button class="op-card '+o.side+'" data-op="'+o.id+'"><div class="op-top"><span class="op-name">'+o.name+'</span><span class="op-side">Con '+sideName(o.side)+'</span></div>'+
-    '<span class="op-moves">'+o.first+'</span><span class="op-meta">'+o.lines.length+' variantes · '+all.length+' posiciones</span>'+
-    '<span class="bar"><span style="width:'+m+'%"></span></span><span class="op-pct"><span>'+m+'% dominado</span><span>'+status+'</span></span></button>';
-  }).join('')+'</section>';
+  const sk=streak();
+  let tot=0,best=null,bestDue=0,fresh=0,freshOp=null;
+  OPENINGS.forEach(o=>{const s=stats(Object.keys(IDXS[o.id].nodes)); tot+=s.due; if(s.due>bestDue){bestDue=s.due; best=o;} if(s.fresh&&!freshOp) freshOp=o; fresh+=s.fresh;});
+  let hero;
+  if(tot) hero={h:'Tenés '+tot+(tot===1?' posición':' posiciones')+' para repasar',p:'Arrancá por '+shortName(best)+' ('+bestDue+'). Un examen corto de diez posiciones y listo.',b:'Repasar ahora',a:'rev'};
+  else if(fresh) hero={h:sk.today?'¡Bien ahí! Seguí así':'¿Una lección rápida?',p:'Te quedan '+fresh+' posiciones por aprender. Seguí con '+shortName(freshOp)+'.',b:'Seguir aprendiendo',a:'learn'};
+  else hero={h:'Estás al día',p:'No hay repasos pendientes. Una práctica con todo el repertorio para no oxidarte.',b:'Practicar',a:'prac'};
+  const thm=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length];
+  return '<header class="top"><div class="brand"><span class="logo"><img alt="" src="'+PIECES.wN+'"></span>Maestro</div>'+
+    '<div class="top-r"><span class="pill streak'+(sk.n?'':' off')+'" title="Días seguidos estudiando">'+ico('flame')+sk.n+(sk.n===1?' día':' días')+'</span>'+
+    '<button id="theme" class="icon-btn" aria-label="'+THEME_LABEL[theme]+'. Cambiar a '+THEME_LABEL[thm].toLowerCase()+'">'+ico(theme)+'</button></div></header>'+
+    '<section class="hero"><img class="wm" alt="" src="'+PIECES.wN+'"><h1>'+hero.h+'</h1><p>'+hero.p+'</p><button class="btn wh" id="heroGo" data-a="'+hero.a+'">'+ico('practica')+hero.b+'</button></section>'+
+    '<h2 class="sec">Tus aperturas<small>'+OPENINGS.length+'</small></h2>'+
+    '<section class="ops">'+OPENINGS.map(o=>{
+      const all=Object.keys(IDXS[o.id].nodes), m=mastery(all), st=stats(all);
+      const tag=st.due?'<span class="tag">'+st.due+' para repasar</span>':st.fresh===all.length?'<span class="tag new">Nueva</span>':st.fresh?'<span class="tag new">'+st.fresh+' por aprender</span>':'<span class="tag ok">Al día</span>';
+      return '<button class="op" data-op="'+o.id+'">'+mini(o.cov.arr,o.cov.n,o.side)+'<span class="op-b"><span class="op-n">'+esc(o.name)+'</span>'+
+        '<span class="side '+o.side+'"><i></i>Con '+sideName(o.side)+' · '+o.lines.length+' variantes</span>'+tag+
+        '<span class="meter"><span class="bar"><span style="width:'+m+'%"></span></span>'+m+'%</span></span></button>';
+    }).join('')+'</section>'+
+    '<p class="credit">Piezas: cburnett (CC BY-SA 3.0), vía lichess. Motor de reglas: chess.js. '+VER+'</p>';
 }
 function bindHome(){
-  document.querySelectorAll('.op-card').forEach(b=>b.onclick=()=>{OP=OPENINGS.find(o=>o.id===b.dataset.op); IDX=IDXS[OP.id]; P=null; X=null; nav({view:'op',tab:'leccion',sub:null},true);});
-  $('#theme').onclick=()=>{theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]; lsSet(THEME_KEY,theme); applyTheme(); $('#theme').textContent=THEME_LABEL[theme];};
+  document.querySelectorAll('.op[data-op]').forEach(b=>b.onclick=()=>{setOp(OPENINGS.find(o=>o.id===b.dataset.op)); nav({view:'op',tab:'leccion',sub:null,grp:null},true);});
+  $('#theme').onclick=()=>{theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]; lsSet(THEME_KEY,theme); applyTheme(); toast(THEME_LABEL[theme]); render();};
+  $('#heroGo').onclick=()=>{
+    const a=$('#heroGo').dataset.a;
+    if(a==='rev'){
+      let best=OPENINGS[0],bd=-1; OPENINGS.forEach(o=>{const d=stats(Object.keys(IDXS[o.id].nodes)).due; if(d>bd){bd=d; best=o;}});
+      setOp(best); startExam('all');
+    } else if(a==='learn'){
+      setOp(OPENINGS.find(o=>stats(Object.keys(IDXS[o.id].nodes)).fresh)||OP); nav({view:'op',tab:'leccion',sub:null,grp:null},true);
+    } else { P=null; nav({view:'op',tab:'practica',sub:{line:'__all'},grp:null},true); }
+  };
 }
 
-function openingShell(){
-  const tabs=[['leccion','Lección'],['practica','Práctica'],['examen','Examen'],['progreso','Progreso']];
-  return '<header class="op-h"><button id="back" class="back" aria-label="Volver">‹</button><div><h2>'+OP.name+'</h2><span class="sub">'+OP.sub+'</span></div></header>'+
-  '<nav class="tabs">'+tabs.map(t=>'<button data-tab="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+'</button>').join('')+'</nav><main id="pane"></main>';
+/* ----- Piezas comunes de las pestañas ----- */
+function opBar(){
+  return '<div class="opbar">'+OPENINGS.map(o=>'<button data-op="'+o.id+'"'+(o===OP?' class="on" aria-current="true"':'')+'><span class="side '+o.side+'"><i></i></span>'+esc(shortName(o))+'</button>').join('')+'</div>';
 }
-
-function linePicker(title,withAll){
-  let h='<div class="picker"><p class="intro">'+title+'</p>';
-  if(withAll) h+='<button class="line all" data-line="__all"><span class="ln">Todo el repertorio</span><span class="ld">El rival elige al azar entre todas sus opciones</span></button>';
-  OP.groups.forEach(gr=>{
+function ttl(t){return '<div class="ttl"><span class="ic '+t+'">'+ico(t)+'</span><h2>'+TAB_NAME[t]+'</h2></div>';}
+function bar(m){return '<span class="meter"><span class="bar"><span style="width:'+m+'%"></span></span>'+m+'%</span>';}
+function lineCard(l){
+  const m=mastery(IDX.lineNodes[l.id]);
+  return '<button class="card'+(m===100?' done':'')+'" data-line="'+l.id+'">'+mini(l.arr,l.key,OP.side)+'<span class="kmv">'+plyLabel(l.arr,l.key)+'</span><span class="cn">'+esc(l.name)+'</span>'+bar(m)+'</button>';
+}
+// Filtro por familia + tarjetas de variantes con mini tablero.
+function linesHTML(){
+  const grp=OP.groups.some(g=>g.id===state.grp)?state.grp:null;
+  let h='<div class="chips">'+[['','Todas']].concat(OP.groups.map(g=>[g.id,gShort(g)])).map(c=>'<button data-grp="'+c[0]+'"'+((grp||'')===c[0]?' class="on"':'')+'>'+esc(c[1])+'</button>').join('')+'</div>';
+  OP.groups.filter(g=>!grp||g.id===grp).forEach(gr=>{
     const ls=OP.lines.filter(l=>l.group===gr.id); if(!ls.length) return;
-    h+='<h3>'+gr.name+'</h3><p class="gd">'+gr.desc+'</p>';
-    ls.forEach(l=>{const m=mastery(IDX.lineNodes[l.id]); h+='<button class="line" data-line="'+l.id+'"><span class="ln">'+l.name+'</span><span class="lp"><span class="bar sm"><span style="width:'+m+'%"></span></span>'+m+'%</span></button>';});
+    const keys=[...new Set(ls.flatMap(l=>IDX.lineNodes[l.id]))];
+    h+=grp?'<p class="gdesc">'+gr.desc+'</p>':'<div class="gh"><span>'+esc(gShort(gr))+'</span><small>'+ls.length+(ls.length===1?' variante':' variantes')+' · '+mastery(keys)+'%</small></div>';
+    h+='<div class="cards">'+ls.map(lineCard).join('')+'</div>';
   });
-  return h+'</div>';
+  return h;
 }
-function bindPicker(fn){$('#pane').querySelectorAll('.line').forEach(b=>b.onclick=()=>fn(b.dataset.line));}
-function studyLayout(title,sub,backTxt){
-  return '<div class="study"><div class="bwrap"><div id="board" class="board"></div><div id="ctrl" class="ctrl"></div></div>'+
-  '<aside class="side"><button id="listBack" class="link">‹ '+(backTxt||'Variantes')+'</button><h3 class="lt">'+title+'</h3><span class="lsub">'+sub+'</span><div id="info" class="info"></div><div id="moves" class="moves"></div></aside></div>';
+function bindLines(fn){
+  const pane=$('#pane');
+  pane.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>nav({grp:b.dataset.grp||null}));
+  pane.querySelectorAll('[data-line]').forEach(b=>b.onclick=()=>fn(b.dataset.line));
+}
+function studyLayout(title,sub,backLabel){
+  return '<div class="study"><div class="bwrap"><div class="shead"><button id="listBack" class="backb" aria-label="'+(backLabel||'Volver a las variantes')+'">'+ico('back')+'</button>'+
+    '<div><h3 class="lt">'+esc(title)+'</h3><span class="lsub">'+esc(sub)+'</span></div></div>'+
+    '<div id="board" class="board"></div><div id="ctrl" class="ctrl"></div></div>'+
+    '<aside class="sidep"><div id="info" class="info"></div><div id="moves" class="moves"></div></aside></div>';
 }
 const upOne=()=>state.d>1?history.back():nav({sub:null});
 
 /* ----- Lección ----- */
 function leccion(){
   const pane=$('#pane');
-  if(!state.sub){ pane.innerHTML='<p class="intro strong">'+OP.intro+'</p>'+linePicker('Elegí una variante para recorrerla jugada por jugada.',false); bindPicker(id=>nav({sub:{line:id,ply:0}},true)); return; }
+  if(!state.sub){
+    pane.innerHTML=ttl('leccion')+'<div class="about"><p>'+OP.intro+'</p><button id="more">Leer más</button></div><p class="lead">Elegí una variante y recorrela jugada por jugada.</p>'+linesHTML();
+    $('#more').onclick=()=>{const a=$('.about'); a.classList.toggle('open'); $('#more').textContent=a.classList.contains('open')?'Leer menos':'Leer más';};
+    bindLines(id=>nav({sub:{line:id,ply:0}},true)); return;
+  }
   const l=OP.lines.find(x=>x.id===state.sub.line); if(!l){nav({sub:null}); return;}
   const L=l.arr.length;
-  pane.innerHTML=studyLayout(l.name,groupName(l.group));
+  pane.innerHTML=studyLayout(l.name,shortName(OP)+' · '+gShort(OP.groups.find(g=>g.id===l.group)||{name:''}));
   const go=n=>{n=Math.max(0,Math.min(L,n)); if(n===state.sub.ply) return; const anim=n===state.sub.ply+1; state.sub.ply=n; remember(); draw(anim);};
   board=new Board($('#board'),{orient:OP.side,onTap:e=>{const r=board.el.getBoundingClientRect(); go(state.sub.ply+(e.clientX-r.left>r.width/2?1:-1));}});
   const draw=anim=>{
     const n=state.sub.ply, {g,last}=gameAt(l.arr,n); board.set(g,{last,anim});
     const note=n>0?(l.notes[n-1]||''):'';
     const who=n===0?'':((n-1)%2===1?'Negras':'Blancas');
-    let txt=n===0?'<p class="note">Posición inicial. Avanzá con ▶ o tocando la mitad derecha del tablero; la izquierda vuelve atrás.</p>':
-      '<p class="said"><span class="who">'+who+'</span> <b>'+(Math.floor((n-1)/2)+1)+(n%2===0?'...':'. ')+l.arr[n-1]+'</b> <span class="who">· '+n+' de '+L+'</span></p>'+(note?'<p class="note">'+note+'</p>':'<p class="note quiet">Jugada natural de la variante.</p>');
-    if(n===L) txt+='<div class="plan"><h4>Plan del medio juego</h4><p>'+l.plan+'</p><button class="primary" id="toPrac">Practicar esta variante</button></div>';
+    let txt=n===0?'<p class="turn">¡Arrancamos!</p><p class="note">Avanzá con la flecha azul o tocando la mitad derecha del tablero. La izquierda vuelve atrás.</p>':
+      '<p class="said"><b>'+plyLabel(l.arr,n)+'</b><span class="who">'+who+' · jugada '+n+' de '+L+'</span></p>'+(note?'<p class="note">'+note+'</p>':'<p class="note quiet">Jugada natural de la variante.</p>');
+    if(n===L) txt+='<div class="plan"><h4>Plan del medio juego</h4><p>'+l.plan+'</p></div><button class="btn or wide" id="toPrac">'+ico('practica')+'Practicar esta variante</button>';
     $('#info').innerHTML=txt;
     $('#moves').innerHTML=moveList(l.arr,n-1,true);
     $('#moves').querySelectorAll('[data-ply]').forEach(b=>b.onclick=()=>go(+b.dataset.ply+1));
@@ -250,7 +383,8 @@ function leccion(){
     const tp=$('#toPrac'); if(tp) tp.onclick=()=>{P=null; nav({tab:'practica',sub:{line:l.id}},true);};
     $('#ctrl').querySelectorAll('button').forEach(b=>{const a=b.dataset.a; b.disabled=(a==='first'||a==='prev')?n===0:n===L;});
   };
-  $('#ctrl').innerHTML='<button data-a="first" aria-label="Inicio">⏮</button><button data-a="prev" aria-label="Anterior">◀</button><button data-a="next" class="big" aria-label="Siguiente">▶</button><button data-a="last" aria-label="Final">⏭</button>';
+  $('#ctrl').innerHTML='<button data-a="first" class="btn soft" aria-label="Inicio">'+ico('first')+'</button><button data-a="prev" class="btn soft" aria-label="Anterior">'+ico('prev')+'</button>'+
+    '<button data-a="next" class="btn bl x2" aria-label="Siguiente">'+ico('next')+'</button><button data-a="last" class="btn soft" aria-label="Final">'+ico('last')+'</button>';
   $('#ctrl').onclick=e=>{const b=e.target.closest('[data-a]'); if(!b)return; const a=b.dataset.a, n=state.sub.ply; go(a==='first'?0:a==='last'?L:a==='prev'?n-1:n+1);};
   keyHandler=e=>{const n=state.sub.ply, k={ArrowRight:n+1,ArrowLeft:n-1,Home:0,End:L}[e.key]; if(k!==undefined){e.preventDefault(); go(k);}};
   $('#listBack').onclick=upOne;
@@ -260,7 +394,11 @@ function leccion(){
 /* ----- Práctica ----- */
 let P=null;
 function practica(){
-  if(!state.sub){ $('#pane').innerHTML=linePicker('Jugás con '+sideName(OP.side)+'. La app mueve las '+sideName(OP.side==='w'?'b':'w')+' y te corrige si salís del repertorio.',true); bindPicker(id=>{P=null; nav({sub:{line:id}},true);}); return; }
+  if(!state.sub){
+    $('#pane').innerHTML=ttl('practica')+'<p class="lead">Jugás con '+sideName(OP.side)+'. La app mueve las '+sideName(OP.side==='w'?'b':'w')+' y te corrige si salís del repertorio.</p>'+
+      '<button class="allcard" data-line="__all">'+ico('shuffle')+'<span><b>Todo el repertorio</b><span>El rival elige al azar entre todas sus opciones</span></span></button>'+linesHTML();
+    bindLines(id=>{P=null; nav({sub:{line:id}},true);}); return;
+  }
   if(!P||P.lineId!==state.sub.line||P.op!==OP.id) startPractice(); else mountPractice();
 }
 function startPractice(){
@@ -271,9 +409,9 @@ function startPractice(){
 function mountPractice(){
   const all=P.lineId==='__all', l=all?null:OP.lines.find(x=>x.id===P.lineId);
   if(!all&&!l){P=null; nav({sub:null}); return;}
-  $('#pane').innerHTML=studyLayout(all?'Todo el repertorio':l.name,all?'El rival elige al azar':groupName(l.group));
+  $('#pane').innerHTML=studyLayout(all?'Todo el repertorio':l.name,shortName(OP)+' · '+(all?'el rival elige al azar':gShort(OP.groups.find(g=>g.id===l.group)||{name:''})));
   $('#listBack').onclick=upOne;
-  $('#ctrl').innerHTML='<button data-a="hint">Pista</button><button data-a="restart">Reiniciar</button>';
+  $('#ctrl').innerHTML='<button data-a="hint" class="btn or">'+ico('hint')+'Pista</button><button data-a="restart" class="btn soft">'+ico('restart')+'Reiniciar</button>';
   $('#ctrl').onclick=e=>{const b=e.target.closest('[data-a]'); if(!b) return; const a=b.dataset.a;
     if(a==='hint'&&!P.done&&P.g.turn()===OP.side){const exp=expected(); if(exp){const t=new Chess(P.g.fen()); const r=t.move(exp); P.hint=r.from; P.tries++; P.msg='Mové la pieza marcada.'; drawP(true);}}
     if(a==='restart') startPractice();};
@@ -303,24 +441,24 @@ function userMove(from,to,dragged){
   if(r.san===exp){
     grade(k,P.tries===0);
     P.g.move(r.san); P.hist.push(r.san); P.last={from:r.from,to:r.to}; P.flash={sq:r.to,kind:'good'}; P.hint=null; P.anim=!dragged;
-    const node=IDX.nodes[k]; P.msg=(P.tries?'Bien, ahora sí. ':'Correcto. ')+(node&&node.note?node.note:'');
+    const node=IDX.nodes[k]; P.msg=(P.tries?'<b>Bien, ahora sí.</b> ':'<b>¡Correcto!</b> ')+(node&&node.note?node.note:'');
     P.tries=0; drawP(); step();
   } else {
     P.tries++; P.errors++; buzz(70);
     if(P.tries>=2){ const c=new Chess(P.g.fen()); const cr=c.move(exp); P.hint=cr.from; P.msg='En el repertorio se juega <b>'+exp+'</b>. Movela vos para seguir.'; }
-    else P.msg=r.san+' no es la jugada del repertorio. Probá de nuevo.';
+    else P.msg='<b>'+r.san+'</b> no es la jugada del repertorio. Probá de nuevo.';
     P.flash={sq:to,kind:'bad'}; drawP(true);
   }
 }
 function finish(){
   P.done=true; const all=P.lineId==='__all', h=P.hist.join(' ');
   const l=all?(OP.lines.find(x=>x.arr.join(' ')===h)||OP.lines.find(x=>x.arr.join(' ').startsWith(h)||h.startsWith(x.arr.join(' ')))):OP.lines.find(x=>x.id===P.lineId);
-  P.msg='<b>Variante completa'+(P.errors?' con '+P.errors+(P.errors===1?' error':' errores'):' sin errores')+'.</b>'+(l?'<div class="plan"><h4>Plan: '+l.name+'</h4><p>'+l.plan+'</p></div>':'')+'<button class="primary" id="again">Otra vez</button>';
+  P.msg='<b>'+(P.errors?'Variante completa con '+P.errors+(P.errors===1?' error':' errores'):'¡Variante completa sin errores!')+'</b>'+(l?'<div class="plan"><h4>Plan: '+esc(l.name)+'</h4><p>'+l.plan+'</p></div>':'')+'<button class="btn wide" id="again">'+ico('restart')+'Otra vez</button>';
   drawP();
 }
 function drawP(can){
   board.set(P.g,{last:P.last,hint:P.hint,flash:P.flash,anim:P.anim,canMove:!!can&&!P.done&&P.g.turn()===OP.side}); P.anim=false;
-  const turnTxt=P.done?'':(P.g.turn()===OP.side?'<p class="turn">Te toca con '+sideName(OP.side)+'.</p>':'<p class="turn quiet">Juega el rival…</p>');
+  const turnTxt=P.done?'':(P.g.turn()===OP.side?'<p class="turn">Te toca con '+sideName(OP.side)+'</p>':'<p class="turn quiet">Juega el rival…</p>');
   $('#info').innerHTML=turnTxt+(P.msg?'<div class="fb'+(P.done&&!P.errors?' good':'')+'">'+P.msg+'</div>':'');
   $('#moves').innerHTML=moveList(P.hist,P.hist.length-1,false);
   const a=$('#again'); if(a) a.onclick=()=>startPractice();
@@ -328,14 +466,22 @@ function drawP(can){
 
 /* ----- Examen ----- */
 let X=null;
+function mastered(keys){return keys.filter(k=>(prog[k]||{box:0}).box>=3).length;}
 function examen(){
   const pane=$('#pane');
   if(!state.sub||!X||X.op!==OP.id){
     if(state.sub){X=null; nav({sub:null}); return;}
     X=null;
-    const st=stats(Object.keys(IDX.nodes));
-    const today=st.due?'Hoy tenés <b>'+st.due+'</b> '+(st.due===1?'posición':'posiciones')+' para repasar'+(st.fresh?' y '+st.fresh+' sin ver':'')+'.':st.fresh?'No tenés repasos pendientes. Quedan '+st.fresh+' posiciones sin ver.':'Estás al día con todo el repertorio.';
-    pane.innerHTML='<div class="picker"><p class="intro strong">Diez posiciones de todo el repertorio. Tenés un intento por posición.</p><p class="intro">Primero aparecen las que fallaste y las que hace más tiempo no ves. '+today+'</p><div class="exopts"><button class="primary" data-g="all">Empezar examen</button>'+OP.groups.map(g=>'<button class="ghost" data-g="'+g.id+'">Solo '+g.name.split(' (')[0]+'</button>').join('')+'</div></div>';
+    const all=Object.keys(IDX.nodes), st=stats(all);
+    const today=st.due?(st.due===1?'Primero sale la posición que toca repasar.':'Primero salen las '+st.due+' que toca repasar y las que fallaste.'):st.fresh?'No tenés repasos pendientes. Van a salir posiciones que todavía no viste.':'Estás al día: el examen elige las que hace más tiempo no ves.';
+    let h=ttl('examen')+'<div class="tiles"><div class="tile due"><b>'+st.due+'</b><span>para repasar</span></div><div class="tile"><b>'+st.fresh+'</b><span>sin ver</span></div><div class="tile ok"><b>'+mastered(all)+'</b><span>dominadas</span></div></div>'+
+      '<div class="panel"><div class="big"><div><h3>Diez posiciones, un intento cada una</h3><p>'+today+'</p></div></div><button class="btn wide" data-g="all">'+ico('examen')+'Empezar examen</button></div>'+
+      '<h2 class="sec">Examen por familia</h2><div class="cards">'+OP.groups.map(gr=>{
+        if(!gr.cov) return '';
+        const ks=[...new Set(OP.lines.filter(l=>l.group===gr.id).flatMap(l=>IDX.lineNodes[l.id]))], s=stats(ks);
+        return '<button class="card" data-g="'+gr.id+'">'+mini(gr.cov.arr,gr.cov.n,OP.side)+'<span class="cn">'+esc(gShort(gr))+'</span><span class="who">'+ks.length+' posiciones'+(s.due?' · <span style="color:var(--orange)">'+s.due+(s.due===1?' pendiente':' pendientes')+'</span>':'')+'</span></button>';
+      }).join('')+'</div>';
+    pane.innerHTML=h;
     pane.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>startExam(b.dataset.g));
     return;
   }
@@ -346,18 +492,22 @@ function startExam(gid){
   let keys=Object.keys(IDX.nodes).filter(k=>{if(gid==='all')return true; return OP.lines.some(l=>l.group===gid&&IDX.lineNodes[l.id].includes(k));});
   keys=keys.map(k=>{const r=prog[k]||{box:0,last:0}; const overdue=(now-r.last)/(INTERVAL[r.box]||1); return {k,s:r.box*2-Math.min(overdue,3)+Math.random()*1.5};}).sort((a,b)=>a.s-b.s).slice(0,10).map(o=>o.k);
   keys.sort(()=>Math.random()-.5);
-  X={op:OP.id,keys,i:0,score:0,answered:false,res:[]}; nav({sub:{exam:gid}},true);
+  X={op:OP.id,keys,i:0,score:0,answered:false,res:[]}; nav({view:'op',tab:'examen',sub:{exam:gid}},true);
 }
-function examDots(){return '<div class="dots" aria-hidden="true">'+X.keys.map((k,i)=>'<i class="'+(i<X.res.length?(X.res[i].ok?'ok':'ko'):i===X.i?'now':'')+'"></i>').join('')+'</div>';}
+function examDots(){return '<div class="dots" aria-hidden="true">'+X.keys.map((k,i)=>'<i class="'+(i<X.res.length?(X.res[i].ok?'ok':'ko'):i===X.i?'now':'')+'"></i>').join('')+'</div><span class="score-pill">'+X.score+' / '+X.keys.length+'</span>';}
 function mountExam(){
   if(X.i>=X.keys.length){
-    $('#pane').innerHTML='<div class="picker"><h3 class="score">'+X.score+' de '+X.keys.length+'</h3><p class="intro">'+(X.score===X.keys.length?'Examen perfecto.':'Las que fallaste vuelven a aparecer antes en el próximo examen.')+'</p><div class="review">'+X.res.map(r=>'<div class="rv '+(r.ok?'ok':'ko')+'"><span>'+esc(r.line)+'</span><b>'+r.san+'</b></div>').join('')+'</div><div class="exopts"><button class="primary" id="newEx">Nuevo examen</button></div></div>';
-    $('#newEx').onclick=()=>{X=null; upOne();}; return;
+    const perfect=X.score===X.keys.length;
+    $('#pane').innerHTML='<div class="shead"><button id="listBack" class="backb" aria-label="Volver">'+ico('back')+'</button><div><h3 class="lt">Resultado</h3><span class="lsub">'+shortName(OP)+'</span></div></div>'+
+      '<div class="panel"><div class="big">'+ring(Math.round(100*X.score/X.keys.length))+'<div><h3>'+(perfect?'¡Examen perfecto!':X.score+' de '+X.keys.length+' bien')+'</h3><p>'+(perfect?'Todas las posiciones suben de caja.':'Las que fallaste vuelven a aparecer antes en el próximo examen.')+'</p></div></div></div>'+
+      '<div class="panel">'+X.res.map(r=>'<div class="rv '+(r.ok?'ok':'ko')+'"><span>'+esc(r.line)+'</span><b>'+r.san+'</b></div>').join('')+'</div>'+
+      '<button class="btn wide" id="newEx">'+ico('restart')+'Nuevo examen</button>';
+    $('#newEx').onclick=$('#listBack').onclick=()=>{X=null; upOne();}; return;
   }
   const node=IDX.nodes[X.keys[X.i]];
-  $('#pane').innerHTML=studyLayout('Posición '+(X.i+1)+' de '+X.keys.length,node.line.name,'Salir');
+  $('#pane').innerHTML=studyLayout('Posición '+(X.i+1)+' de '+X.keys.length,shortName(OP)+' · '+node.line.name,'Salir del examen');
   $('#listBack').onclick=()=>{X=null; upOne();};
-  $('#ctrl').innerHTML=examDots()+'<span class="prog">Aciertos: '+X.score+'</span>';
+  $('#ctrl').innerHTML=examDots();
   const g=new Chess(node.fen);
   board=new Board($('#board'),{orient:OP.side,onMove:(from,to,dragged)=>{
     if(X.answered) return; const t=new Chess(node.fen); const r=t.move({from,to,promotion:'q'}); if(!r) return;
@@ -365,28 +515,35 @@ function mountExam(){
     X.res.push({ok,san:node.san,line:node.line.name});
     const c=new Chess(node.fen); const cr=c.move(node.san);
     board.set(c,{last:{from:cr.from,to:cr.to},flash:{sq:cr.to,kind:ok?'good':'bad'},anim:!ok||!dragged});
-    $('#ctrl').innerHTML=examDots()+'<span class="prog">Aciertos: '+X.score+'</span>';
-    $('#info').innerHTML='<div class="fb '+(ok?'good':'bad')+'"><b>'+(ok?'Correcto: ':'La jugada era ')+node.san+'.</b> '+(ok?'':'Jugaste '+r.san+'. ')+(node.note||'')+'</div><button class="primary" id="nx">'+(X.i+1<X.keys.length?'Siguiente':'Ver resultado')+'</button>';
+    $('#ctrl').innerHTML=examDots();
+    $('#info').innerHTML='<div class="fb '+(ok?'good':'bad')+'"><b>'+(ok?'¡Correcto! ':'La jugada era ')+node.san+'.</b> '+(ok?'':'Jugaste '+r.san+'. ')+(node.note||'')+'</div><button class="btn wide" id="nx">'+(X.i+1<X.keys.length?'Siguiente':'Ver resultado')+ico('next')+'</button>';
     $('#nx').onclick=()=>{X.i++; X.answered=false; render();};
   }});
   X.answered=false;
   board.set(g,{last:node.last,canMove:true});
-  $('#info').innerHTML='<p class="turn">Juegan '+sideName(OP.side)+'. ¿Qué dice el repertorio?</p>';
+  $('#info').innerHTML='<p class="turn">Juegan '+sideName(OP.side)+'</p><p class="note quiet">¿Qué dice el repertorio? Tenés un solo intento.</p>';
   $('#moves').innerHTML=moveList(node.prefix,node.prefix.length-1,false);
 }
 
 /* ----- Progreso ----- */
+function ring(p){
+  const c=2*Math.PI*42;
+  return '<div class="ring"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="42" fill="none" stroke="var(--surface2)" stroke-width="12"/>'+
+    (p>0?'<circle cx="52" cy="52" r="42" fill="none" stroke="var(--lime)" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+(c*p/100).toFixed(1)+' '+c.toFixed(1)+'"/>':'')+'</svg><b>'+p+'%</b></div>';
+}
 function progreso(){
-  const all=Object.keys(IDX.nodes), st=stats(all);
-  let h='<div class="picker"><div class="big-m"><span class="bm-n">'+mastery(all)+'%</span><span class="bm-l">del repertorio dominado</span></div>'+
-    '<p class="gd">'+(all.length-st.fresh)+' de '+all.length+' posiciones vistas'+(st.due?' · <b class="due">'+st.due+' para repasar</b>':'')+'</p>';
+  const all=Object.keys(IDX.nodes), st=stats(all), m=mastery(all);
+  let h=ttl('progreso')+'<div class="panel"><div class="big">'+ring(m)+'<div><h3>'+(m===100?'¡Repertorio dominado!':m?'Vas bien':'Todavía sin empezar')+'</h3><p>'+(all.length-st.fresh)+' de '+all.length+' posiciones vistas en '+esc(shortName(OP))+'.</p></div></div></div>'+
+    '<div class="tiles"><div class="tile"><b>'+(all.length-st.fresh)+'</b><span>vistas</span></div><div class="tile due"><b>'+st.due+'</b><span>para repasar</span></div><div class="tile ok"><b>'+mastered(all)+'</b><span>dominadas</span></div></div>';
   OP.groups.forEach(gr=>{
-    const ls=OP.lines.filter(l=>l.group===gr.id); const keys=[...new Set(ls.flatMap(l=>IDX.lineNodes[l.id]))];
-    h+='<h3>'+gr.name+'<span class="gpct">'+mastery(keys)+'%</span></h3>';
-    ls.forEach(l=>{const ks=IDX.lineNodes[l.id]; const m=mastery(ks); const errs=ks.reduce((a,k)=>a+((prog[k]||{}).ko||0),0);
-      h+='<div class="prow"><span class="ln">'+l.name+'</span><span class="bar sm"><span style="width:'+m+'%"></span></span><span class="pn">'+m+'%</span>'+(errs?'<span class="pe">'+errs+' err.</span>':'<span class="pe"></span>')+'</div>';});
+    const ls=OP.lines.filter(l=>l.group===gr.id); if(!ls.length) return;
+    const keys=[...new Set(ls.flatMap(l=>IDX.lineNodes[l.id]))];
+    h+='<div class="gh"><span>'+esc(gShort(gr))+'</span><small>'+mastery(keys)+'%</small></div><div class="panel">';
+    ls.forEach(l=>{const ks=IDX.lineNodes[l.id], lm=mastery(ks), errs=ks.reduce((a,k)=>a+((prog[k]||{}).ko||0),0);
+      h+='<div class="prow">'+mini(l.arr,l.key,OP.side)+'<div class="pb"><span class="pn">'+esc(l.name)+'</span>'+bar(lm)+'</div>'+(errs?'<span class="pe">'+errs+' err.</span>':'')+'</div>';});
+    h+='</div>';
   });
-  h+='<p class="gd">Una posición cuenta como dominada cuando la acertaste tres veces seguidas. Un error la vuelve a cero.</p><button class="ghost danger" id="reset">Borrar progreso</button></div>';
+  h+='<p class="lead">Una posición cuenta como dominada cuando la acertaste tres veces seguidas. Un error la vuelve a cero.</p><button class="danger" id="reset">Borrar progreso</button>';
   $('#pane').innerHTML=h;
   $('#reset').onclick=()=>{if(confirm('¿Borrar todo el progreso guardado en este dispositivo?')){prog={}; save(); render();}};
 }
@@ -394,9 +551,10 @@ function progreso(){
 /* ---------- Arranque ---------- */
 if(typeof BUILD!=='undefined'){
   let day=BUILD.date; try{day=new Date(BUILD.date+'T12:00').toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});}catch(e){}
-  const ver=$('#ver'); if(ver) ver.textContent='Versión del '+day+'.';
+  VER='Versión del '+day+'.';
   const seen=lsGet(SEEN_KEY); if(seen&&seen!==BUILD.v) setTimeout(()=>toast('App actualizada · versión del '+day),400); lsSet(SEEN_KEY,BUILD.v);
 }
+{const o=OPENINGS.find(x=>x.id===lsGet(LAST_OP_KEY)); if(o){OP=o; IDX=IDXS[o.id];}}
 try{restore(history.state);}catch(e){}
 remember();
 render();
