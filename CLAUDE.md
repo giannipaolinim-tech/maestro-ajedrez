@@ -12,7 +12,8 @@ App personal de Gianni para estudiar repertorios de aperturas como si tuviera un
 ## Comandos
 
 ```
-node scripts/validate.js   # legalidad + consistencia del repertorio (obligatorio tras tocar src/data.js)
+node scripts/validate.js   # legalidad + consistencia del repertorio y de los módulos (obligatorio tras tocar src/data.js o src/school.js)
+npm run check-kbn          # verifica el tutorial de alfil y caballo con el solucionador exacto (~15 s, ~1,5 GB de RAM)
 node scripts/build.js      # genera dist/ (index.html + sw.js + manifest + icons)
 npm run build              # validate + build
 npm run serve              # build + servidor local en http://localhost:8080 (para probar la PWA)
@@ -27,7 +28,7 @@ Sin dependencias de npm: chess.js 0.10.3 está vendorizado en `vendor/`.
 ```
 src/head.html      HTML base + todo el CSS (tokens de color oscuro por defecto y claro en :root; fuente Nunito)
 src/data.js        const OPENINGS = [...]  → los repertorios (lo que más se edita)
-src/school.js      const SCHOOL = [...]    → módulos de la Escuela para principiantes (pasos de teoría y ejercicios)
+src/school.js      const SECTIONS, SCHOOL  → secciones de Aprender y sus módulos (pasos de teoría y ejercicios)
 src/app.js         lógica: índice, tablero, lección, práctica, examen, progreso, navegación
 src/sw.js          service worker de la PWA (build.js completa VERSION y FONT_CSS)
 src/manifest.webmanifest
@@ -36,6 +37,7 @@ assets/pieces/     piezas SVG cburnett (lichess, CC BY-SA 3.0) → se embeben co
 assets/icon.svg    ícono de la app; assets/icons/*.png se generan con `npm run icons` y se versionan
 scripts/build.js   concatena todo en dist/index.html y copia lo de la PWA
 scripts/validate.js
+scripts/kbnk.js    solucionador exacto de KBNK (análisis retrógrado); --check verifica los módulos con kbn:true
 scripts/serve.js   servidor estático mínimo para probar dist/ en localhost
 .github/workflows/pages.yml  cada push a main → npm run build → publica dist/ en GitHub Pages
 dist/              build final (no se versiona: lo arma el workflow)
@@ -60,14 +62,20 @@ dist/              build final (no se versiona: lo arma el workflow)
 
 Las transposiciones se aprovechan a propósito: posiciones idénticas comparten nodo (clave = FEN sin contadores de jugadas).
 
-## Escuela (src/school.js)
+## Aprender: secciones y módulos (src/school.js)
+
+`SECTIONS` = Fundamentos, Aperturas, Táctica y Finales. Aperturas es especial: lista `OPENINGS` (repertorios y «Para empezar»). Cada módulo lleva `sec`.
 
 ```js
-{ id, title, icon: "wN", desc, steps: [
+{ id, sec, kbn?, title, icon: "wN", desc, steps: [
   { t: "info"|"move"|"tap", h, text, fen? | moves?, marks?: { e4: "g"|"r"|"y"|"b" }, arrows?: ["e2e4"],
     sol?: ["Nf3", ...] | goal?: "mate", ok?, hint?,     // move
-    targets?: ["e4"] | from?: "d4", need?: 4 } ] }     // tap (from = jugadas legales de esa pieza)
+    targets?: ["e4"] | from?: "d4", need?: 4,            // tap (from = jugadas legales de esa pieza)
+    line?: "Bb7+ Kb8 Na6#", alts?: [[...]], notes?: {} // line: el usuario juega su bando y el rival responde solo
+    mode?: "kbn" } ] }                                   // play: práctica libre contra la máquina
 ```
+
+En `line`, `alts[k]` son las otras jugadas igual de buenas para la jugada k del usuario: se avisa «también gana» (y si dan mate, se acepta). El tutorial de mate con alfil y caballo (`kbn:true`) está verificado con `scripts/kbnk.js`: cada jugada de blancas es óptima, cada respuesta negra es la mejor defensa y las `alts` son exactamente las demás óptimas. La práctica libre (`kbnStart`, `kbnDefense`) usa una defensa heurística (come piezas colgadas, busca espacio y se aleja de las esquinas buenas): es buena, pero no perfecta.
 
 validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que no mueve no esté en jaque, soluciones legales y al menos una jugada que cumpla el objetivo. En `move` se compara la SAN sin `+#`; la coronación es siempre a dama. Progreso en `maestro-ajedrez-school` (`{modId: {done, ex: {paso: 1}}}`).
 
@@ -76,10 +84,10 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
 - `buildIndex(op)` → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
 - **Tablero propio** (`Board`): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
 - **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
-- **Navegación**: barra inferior fija `#nav` (Inicio · Escuela · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|school|op, `tab`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
+- **Navegación**: barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|learn|op, `tab`, `sec`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
 - **Selección visual**: las variantes se eligen con tarjetas de mini tablero (`mini(arr,n,orient)`, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
-- **Inicio**: tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
-- **Escuela** (`escuela()`): lista de módulos y aperturas «Para empezar»; cada módulo recorre pasos con el tablero común. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
+- **Inicio**: tarjeta de Aprender con el próximo módulo pendiente, y tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
+- **Aprender** (`aprender()`, vista `learn`): menú de secciones → lista de módulos (o de aperturas) → `modulePlayer()`. La pestaña Aprender de cada apertura (`op` + `leccion`) se abre desde la sección Aperturas. Los estados viejos con `view:'school'` se convierten a `learn`. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
 - **Lección**: recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
 - **Práctica**: el rival juega solo (480 ms). Si el usuario se equivoca dos veces, se marca la jugada correcta. El modo `__all` elige al azar entre `opp[clave]`.
 - **Examen**: 10 posiciones elegidas por prioridad de caja baja y atraso (con algo de azar), con un intento cada una. Se puede filtrar por grupo.

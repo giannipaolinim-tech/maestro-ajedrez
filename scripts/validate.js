@@ -28,10 +28,11 @@ for (const op of OPENINGS) {
 }
 
 // Escuela: cada paso tiene una posición válida y cada ejercicio, solución.
-const SCHOOL = new Function(fs.readFileSync(path.join(__dirname, '../src/school.js'), 'utf8') + ';return SCHOOL;')();
+const { SCHOOL, SECTIONS } = new Function(fs.readFileSync(path.join(__dirname, '../src/school.js'), 'utf8') + ';return {SCHOOL, SECTIONS};')();
 const SQ = /^[a-h][1-8]$/, norm = s => s.replace(/[+#?!]/g, '');
 let nEx = 0, schoolOk = true;
 const err = (...a) => { console.log('ESCUELA', ...a); schoolOk = false; };
+for (const m of SCHOOL) if (!SECTIONS.some(x => x.id === m.sec) || m.sec === 'aperturas') err(m.id, 'sección inválida', m.sec);
 for (const m of SCHOOL) m.steps.forEach((st, i) => {
   const where = m.id + ' paso ' + i;
   const g = new Chess();
@@ -62,6 +63,18 @@ for (const m of SCHOOL) m.steps.forEach((st, i) => {
     }
     if (!targets || !targets.length || targets.some(q => !SQ.test(q))) err(where, 'casillas objetivo inválidas');
     else if (st.need && st.need > targets.length) err(where, 'need mayor que las casillas', st.need, targets.length);
+  } else if (st.t === 'line') {
+    nEx++;
+    const me = g.turn(), ms = st.line.split(' '), mine = ms.filter((_, k) => k % 2 === 0);
+    if (!st.alts || st.alts.length !== mine.length) err(where, 'alts tiene que tener una lista por jugada del usuario', mine.length);
+    ms.forEach((mv, k) => {
+      if (k % 2 === 0 && st.alts) for (const a of st.alts[k / 2] || []) { if (!g.moves().some(l => norm(l) === norm(a))) err(where, 'alternativa ilegal', a); }
+      if (!g.move(mv)) err(where, 'jugada ilegal en la línea', mv);
+    });
+    if (g.turn() === me && !g.in_checkmate()) err(where, 'la línea tiene que terminar con una jugada del usuario');
+    for (const k of Object.keys(st.notes || {})) if (+k >= ms.length) err(where, 'nota fuera de rango', k);
+  } else if (st.t === 'play') {
+    if (st.mode !== 'kbn') err(where, 'modo de práctica desconocido', st.mode);
   } else if (st.t !== 'info') err(where, 'tipo desconocido', st.t);
 });
 console.log('escuela'.padEnd(12), schoolOk ? 'OK ' : 'ERR', SCHOOL.length, 'módulos,', nEx, 'ejercicios');

@@ -4,8 +4,18 @@
 //   move: sol:[SAN aceptadas] o goal:"mate"; ok: texto al acertar; hint: pista
 //   tap:  targets:[casillas] o from:casilla (= sus jugadas legales); need: cuántas hay que tocar (por defecto, todas) }
 // Siempre con los dos reyes en el tablero (chess.js los necesita). validate.js chequea todo.
+//   line: fen + line:"Bb7+ Kb8 Na6#" (el usuario juega su bando, el rival responde solo); alts:[[...] por cada jugada
+//         del usuario] = otras jugadas igual de buenas (se avisa que también ganan); notes:{índice en line: texto}
+//   play: práctica libre contra la máquina (mode:"kbn" = mate con alfil y caballo desde una posición al azar)
+// Los pasos de módulos con kbn:true se verifican con el solucionador exacto: node scripts/kbnk.js --check
+const SECTIONS = [
+ {id:"fund", title:"Fundamentos", icon:"wP", desc:"Tablero, piezas, reglas, valor de las piezas y cómo pensar en cada etapa."},
+ {id:"aperturas", title:"Aperturas", icon:"wN", desc:"Tus repertorios y aperturas clásicas para empezar."},
+ {id:"tactica", title:"Táctica", icon:"bN", desc:"Golpes que ganan material y patrones de mate."},
+ {id:"finales", title:"Finales", icon:"wK", desc:"Mates básicos, finales de peones y el mate con alfil y caballo."}
+];
 const SCHOOL = [
-{id:"tablero", title:"El tablero", icon:"wP", desc:"Casillas, coordenadas y cómo se arma la posición inicial.",
+{id:"tablero", sec:"fund", title:"El tablero", icon:"wP", desc:"Casillas, coordenadas y cómo se arma la posición inicial.",
  steps:[
   {t:"info", h:"El tablero", text:"El ajedrez se juega en un tablero de 8×8: 64 casillas claras y oscuras. Cada jugador tiene 16 piezas: las blancas abajo y las negras arriba. Siempre empiezan las blancas y se juega por turnos, una jugada cada uno.", marks:{h1:"g"}},
   {t:"info", h:"Para armarlo bien", text:"La casilla de la esquina inferior derecha (h1) siempre es clara. Si te queda oscura, el tablero está girado.", marks:{h1:"g",a1:"r"}},
@@ -15,7 +25,7 @@ const SCHOOL = [
   {t:"info", h:"La posición inicial", text:"En la fila 1: torres en las esquinas, después caballos y alfiles, y en el medio la dama y el rey. En la fila 2, ocho peones. Las negras, igual pero enfrente. La dama empieza en su color: la blanca en d1 (clara), la negra en d8 (oscura).", marks:{d1:"y",d8:"y"}},
   {t:"tap", h:"¿Dónde está la dama blanca?", text:"Tocá su casilla.", targets:["d1"], ok:"Exacto: la dama blanca empieza en d1, una casilla clara."}
  ]},
-{id:"piezas", title:"Cómo mueve cada pieza", icon:"wN", desc:"Torre, alfil, dama, rey, caballo y peón, con ejercicios.",
+{id:"piezas", sec:"fund", title:"Cómo mueve cada pieza", icon:"wN", desc:"Torre, alfil, dama, rey, caballo y peón, con ejercicios.",
  steps:[
   {t:"info", h:"La torre", text:"Se mueve en línea recta, en horizontal o en vertical, tantas casillas como quiera. No puede saltar por encima de otras piezas.", fen:"k7/8/8/8/3R4/8/8/7K w - - 0 1", arrows:["d4d8","d4d1","d4a4","d4h4"]},
   {t:"tap", h:"Movimientos de la torre", text:"Tocá 4 casillas a las que pueda ir la torre de d4.", fen:"k7/8/8/8/3R4/8/8/7K w - - 0 1", from:"d4", need:4, ok:"¡Bien! La torre controla toda su fila y su columna."},
@@ -32,7 +42,7 @@ const SCHOOL = [
   {t:"move", h:"Avanzá el peón dos casillas", text:"Desde e2.", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", sol:["e4"], ok:"Bien: el salto doble solo vale en la primera jugada de cada peón."},
   {t:"move", h:"El peón captura en diagonal", text:"El peón no come hacia adelante: captura una casilla en diagonal. Acá puede comer el peón de d5 o el caballo de f5. ¿Cuál conviene?", fen:"4k3/8/8/3p1n2/4P3/8/8/4K3 w - - 0 1", sol:["exf5"], ok:"¡Bien visto! El caballo vale bastante más que un peón.", hint:"Elegí la pieza más valiosa."}
  ]},
-{id:"jaque", title:"Jaque, mate y ahogado", icon:"bK", desc:"Cómo se gana una partida y la trampa del empate.",
+{id:"jaque", sec:"fund", title:"Jaque, mate y ahogado", icon:"bK", desc:"Cómo se gana una partida y la trampa del empate.",
  steps:[
   {t:"info", h:"Jaque", text:"Cuando una pieza ataca al rey, es jaque. El jugador en jaque está obligado a salir, de una de tres formas: mover el rey, tapar el ataque con otra pieza o capturar la pieza que da jaque.", fen:"4k3/8/8/8/8/8/8/4R1K1 b - - 0 1", marks:{e8:"r"}, arrows:["e1e8"]},
   {t:"move", h:"Capturá la pieza que da jaque", text:"La torre de e1 le da jaque a tu rey. Sacala del tablero.", fen:"4k3/8/8/8/8/8/3b4/4R1K1 b - - 0 1", sol:["Bxe1"], ok:"¡Bien! Salir del jaque capturando es lo mejor: ganás material.", hint:"Tu alfil de d2 ataca e1."},
@@ -43,7 +53,7 @@ const SCHOOL = [
   {t:"info", h:"Ahogado", text:"Ahogado: el rey NO está en jaque, pero el jugador no tiene ninguna jugada legal. Es tablas (empate). Le pasa mucho al que va ganando y se apura.", fen:"7k/5Q2/6K1/8/8/8/8/8 b - - 0 1", marks:{h8:"y",g8:"r",h7:"r",g7:"r"}},
   {t:"move", h:"Dá mate (¡sin ahogar!)", text:"Juegan blancas. Hay una sola jugada que da mate; varias ahogan.", fen:"k7/8/2K5/8/8/8/8/1Q6 w - - 0 1", goal:"mate", ok:"¡Mate! La dama pegada al rey y protegida por el tuyo.", hint:"Llevá la dama pegada al rey negro, donde tu rey la proteja."}
  ]},
-{id:"reglas", title:"Reglas especiales", icon:"wK", desc:"Enroque, coronación, captura al paso y tablas.",
+{id:"reglas", sec:"fund", title:"Reglas especiales", icon:"wK", desc:"Enroque, coronación, captura al paso y tablas.",
  steps:[
   {t:"info", h:"El enroque", text:"El rey se mueve dos casillas hacia una torre y la torre salta al otro lado del rey. Es la única jugada en la que movés dos piezas. Sirve para poner el rey a salvo y sacar la torre al juego.", fen:"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1", arrows:["e1g1","h1f1"]},
   {t:"move", h:"Enrocá corto", text:"Mové el rey dos casillas hacia la derecha.", fen:"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1", sol:["O-O"], ok:"¡Enroque corto! El rey quedó en g1 y la torre en f1."},
@@ -55,14 +65,14 @@ const SCHOOL = [
   {t:"move", h:"Capturá al paso", text:"Las negras acaban de jugar d7-d5. Tu peón de e5 puede comerlo yendo a d6.", fen:"4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1", marks:{d7:"y",d5:"y"}, sol:["exd6"], ok:"¡Al paso! El peón de d5 desaparece aunque tu peón fue a d6."},
   {t:"info", h:"Tablas", text:"La partida termina en tablas (empate) por: ahogado; acuerdo entre los jugadores; la misma posición repetida tres veces; 50 jugadas de cada lado sin capturas ni movimientos de peón; o material insuficiente para dar mate, como acá: rey y alfil contra rey.", fen:"8/8/4k3/8/8/2KB4/8/8 w - - 0 1"}
  ]},
-{id:"valor", title:"Valor de las piezas", icon:"wQ", desc:"Cuánto vale cada pieza y cómo decidir un cambio.",
+{id:"valor", sec:"fund", title:"Valor de las piezas", icon:"wQ", desc:"Cuánto vale cada pieza y cómo decidir un cambio.",
  steps:[
   {t:"info", h:"Los valores", text:"Para decidir cambios, usá estos valores: peón 1, caballo 3, alfil 3, torre 5 y dama 9. El rey no tiene valor: si lo perdés, perdés la partida. Un cambio es bueno si recibís más de lo que das."},
   {t:"move", h:"¿Qué conviene capturar?", text:"El caballo puede comer un peón o una torre.", fen:"4k3/8/2p5/5r2/3N4/8/8/4K3 w - - 0 1", sol:["Nxf5"], ok:"¡Claro! La torre vale 5 y el peón, 1.", hint:"Contá el valor de cada pieza."},
   {t:"move", h:"Ganá la calidad", text:"La torre de b4 está defendida por el peón de c5. ¿Conviene tomarla con el alfil?", fen:"4k3/8/8/2p5/1r6/8/3B4/4K3 w - - 0 1", sol:["Bxb4"], ok:"Sí: das un alfil (3) y recibís una torre (5). Eso se llama ganar la calidad.", hint:"Comparás 3 contra 5."},
   {t:"info", h:"Piezas colgadas", text:"Una pieza colgada es una pieza atacada y sin defensa: el rival la come gratis. Antes de cada jugada, mirá si alguna de tus piezas queda colgada y si el rival dejó alguna."}
  ]},
-{id:"etapas", title:"Las etapas del juego", icon:"wB", desc:"Apertura, medio juego y final: qué buscar en cada una.",
+{id:"etapas", sec:"fund", title:"Las etapas del juego", icon:"wB", desc:"Apertura, medio juego y final: qué buscar en cada una.",
  steps:[
   {t:"info", h:"Tres etapas", text:"Una partida tiene tres etapas. La apertura: las primeras 10 a 15 jugadas, para sacar las piezas. El medio juego: planes, ataques y táctica. El final: quedan pocas piezas y el rey se vuelve protagonista. En cada una se piensa distinto."},
   {t:"info", h:"La apertura: tres objetivos", text:"1) Controlar el centro (e4, d4, e5 y d5) con peones y piezas. 2) Desarrollar: sacar caballos y alfiles. 3) Enrocar para poner el rey a salvo. Quien cumple esto primero, suele llegar mejor al medio juego.", moves:"e4 e5 Nf3 Nc6 Bc4 Bc5", marks:{d4:"g",e4:"g",d5:"g",e5:"g"}},
@@ -76,7 +86,7 @@ const SCHOOL = [
   {t:"info", h:"El final", text:"Con pocas piezas, el rey deja de esconderse: es una pieza fuerte y va al centro. Los peones pasados (sin peones rivales delante ni en las columnas vecinas) valen oro: hay que empujarlos. Si vas ganando material, cambiá piezas, no peones.", fen:"8/8/4k3/3p4/3P4/2K5/8/8 w - - 0 1"},
   {t:"move", h:"Activá el rey", text:"En el final, el rey va adelante. Acercalo al centro de la acción.", fen:"8/8/4k3/3p4/3P4/2K5/8/8 w - - 0 1", sol:["Kd3","Kb4"], ok:"¡Bien! El rey activo es la clave de los finales.", hint:"Acercá el rey hacia los peones."}
  ]},
-{id:"tactica", title:"Táctica básica", icon:"bN", desc:"Horquilla, clavada, ataque doble, descubierto y enfilada.",
+{id:"tactica", sec:"tactica", title:"Táctica básica", icon:"bN", desc:"Horquilla, clavada, ataque doble, descubierto y enfilada.",
  steps:[
   {t:"info", h:"¿Qué es la táctica?", text:"Golpes de una o pocas jugadas que ganan material o dan mate. Entre principiantes, casi todas las partidas se deciden por táctica. Los patrones más comunes: horquilla, clavada, ataque doble, ataque descubierto y enfilada."},
   {t:"info", h:"Horquilla", text:"Una pieza ataca dos piezas a la vez: el rival solo puede salvar una. El caballo es el rey de las horquillas.", fen:"r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1", marks:{a8:"r",e8:"r"}},
@@ -88,7 +98,16 @@ const SCHOOL = [
   {t:"move", h:"Ataque descubierto", text:"Si el alfil se corre, la torre da jaque. Elegí bien adónde va el alfil.", fen:"1q2k3/8/8/4B3/8/8/8/4R1K1 w - - 0 1", sol:["Bxb8"], ok:"¡Jaque descubierto y te comiste la dama!", hint:"El alfil puede capturar algo mientras destapa la torre."},
   {t:"move", h:"Enfilada", text:"Atacás una pieza valiosa que, al moverse, deja expuesta otra detrás. Dale jaque al rey de forma que la dama quede detrás.", fen:"8/8/8/3k2q1/8/8/8/R6K w - - 0 1", sol:["Ra5"], ok:"El rey tiene que salir de la fila 5 y la torre come la dama.", hint:"El rey y la dama están en la misma fila."}
  ]},
-{id:"mates", title:"Mates básicos", icon:"bQ", desc:"El pastor (y cómo evitarlo) y cómo dar mate con dama o torre.",
+{id:"patrones", sec:"tactica", title:"Patrones de mate", icon:"wR", desc:"Mates con nombre propio que aparecen una y otra vez.",
+ steps:[
+  {t:"info", h:"Patrones que se repiten", text:"Muchos mates se repiten con la misma forma. Si los conocés, los ves venir (a favor y en contra). Acá van cinco clásicos, cada uno en un ejercicio de mate en una."},
+  {t:"move", h:"Mate de la coz", text:"El rey negro está ahogado por sus propias piezas. Un caballo alcanza.", fen:"6rk/6pp/8/6N1/8/8/8/6K1 w - - 0 1", goal:"mate", ok:"¡Mate de la coz! El caballo da jaque y el rey no tiene casillas: lo rodean sus propias piezas.", hint:"El caballo de g5 llega a f7."},
+  {t:"move", h:"Mate de Anastasia", text:"El caballo de e7 cubre g8. La torre da el golpe por la columna h.", fen:"7k/4N1p1/8/8/8/R7/8/6K1 w - - 0 1", goal:"mate", ok:"¡Mate de Anastasia! Torre por la columna h y caballo cubriendo g8.", hint:"La torre va a la columna h."},
+  {t:"move", h:"Dama y alfil contra h7", text:"La dama ataca h7 y el alfil de d3 la apoya.", fen:"5rk1/5ppp/8/7Q/8/3B4/8/6K1 w - - 0 1", goal:"mate", ok:"¡Mate! Es el golpe típico contra el enroque corto: dama y alfil apuntando a h7.", hint:"La dama captura en h7."},
+  {t:"move", h:"Dama y caballo", text:"El caballo de f5 controla g7. La dama aterriza ahí.", fen:"6k1/5p1p/8/5N2/8/2Q5/8/7K w - - 0 1", goal:"mate", ok:"¡Mate! La dama en g7, defendida por el caballo, cubre todas las salidas.", hint:"La dama recorre la gran diagonal."},
+  {t:"move", h:"El pasillo, otra vez", text:"La torre negra de d8 cuida la última fila, pero nadie la defiende a ella.", fen:"3r2k1/5ppp/8/8/8/8/5PPP/3RR1K1 w - - 0 1", goal:"mate", ok:"¡Mate! Al capturar la única defensora de la octava fila, el rey queda encerrado por sus peones.", hint:"Capturá la torre de d8."}
+ ]},
+{id:"mates", sec:"finales", title:"Mates básicos", icon:"bQ", desc:"El pastor (y cómo evitarlo) y cómo dar mate con dama o torre.",
  steps:[
   {t:"info", h:"El mate del pastor", text:"Dama y alfil atacan f7, la casilla más débil de las negras: al principio solo la defiende el rey. Es la trampa más común entre principiantes.", moves:"e4 e5 Bc4 Nc6 Qh5 Nf6 Qxf7#", marks:{f7:"r"}},
   {t:"move", h:"Defendete del pastor", text:"Las blancas amenazan Qxf7#. Defendé f7.", moves:"e4 e5 Qh5 Nc6 Bc4", sol:["g6","Qe7","Qf6","Nh6"], ok:"f7 está a salvo. Después podés atacar la dama con ...Nf6 y ganar tiempo.", hint:"Tapá la diagonal de la dama o defendé f7."},
@@ -97,7 +116,7 @@ const SCHOOL = [
   {t:"move", h:"Mate con torre y rey", text:"Rey contra rey enfrentados: la torre da el golpe.", fen:"k7/8/1K6/8/8/8/8/7R w - - 0 1", goal:"mate", ok:"¡Mate! Tu rey cubre la fila 7 y la torre, la 8.", hint:"La torre a la última fila."},
   {t:"move", h:"La escalera con dos torres", text:"Una torre corta la fila 7. La otra da el mate.", fen:"6k1/R7/8/8/8/8/8/1R4K1 w - - 0 1", goal:"mate", ok:"¡Mate de la escalera! Las torres se turnan para empujar al rey hasta el borde.", hint:"La torre de b1 sube hasta la fila 8."}
  ]},
-{id:"finales", title:"Finales clave", icon:"wP", desc:"Regla del cuadrado, oposición y torres detrás del peón.",
+{id:"finales", sec:"finales", title:"Finales clave", icon:"wP", desc:"Regla del cuadrado, oposición y torres detrás del peón.",
  steps:[
   {t:"info", h:"La regla del cuadrado", text:"Para saber si un rey alcanza a un peón pasado: imaginá un cuadrado desde el peón hasta la fila de coronación. Si el rey rival puede entrar al cuadrado en su turno, lo alcanza; si no, el peón corona solo.", fen:"8/8/8/8/P7/8/7k/K7 w - - 0 1", marks:{a5:"g",d5:"g",a8:"g",d8:"g"}},
   {t:"move", h:"Corré el peón", text:"El rey negro está fuera del cuadrado. ¡Avanzá!", fen:"8/8/8/8/P7/8/7k/K7 w - - 0 1", sol:["a5"], ok:"El rey negro no llega: el peón corona solo."},
@@ -105,5 +124,21 @@ const SCHOOL = [
   {t:"move", h:"Rey delante del peón", text:"En los finales de rey y peón, el rey va adelante del peón, no atrás. Avanzá el rey.", fen:"4k3/8/8/4K3/4P3/8/8/8 w - - 0 1", sol:["Ke6","Kd6","Kf6"], ok:"¡Eso! Con el rey delante del peón, las negras tienen que ceder paso.", hint:"El rey sube a la fila 6."},
   {t:"info", h:"Torres detrás del peón pasado", text:"En los finales de torres, la torre va detrás del peón pasado, sea propio o rival. Desde atrás lo empuja (o lo frena) y gana actividad a medida que el peón avanza.", fen:"6k1/8/8/P7/8/8/5PPP/R5K1 w - - 0 1", arrows:["a1a5"]},
   {t:"info", h:"¿Y ahora?", text:"Ya tenés lo básico. Próximo paso: aprendé una apertura con blancas y una con negras (en la Escuela tenés tres para empezar), jugá partidas y, después de cada una, buscá dónde perdiste material. Así se mejora."}
+ ]},
+{id:"alfil-caballo", sec:"finales", kbn:true, title:"Mate con alfil y caballo", icon:"wB", desc:"El mate básico más difícil: la esquina correcta y la W del caballo, paso a paso.",
+ steps:[
+  {t:"info", h:"Un mate con fama de difícil", text:"Rey, alfil y caballo contra rey es mate forzado, pero es el mate básico más difícil: desde una posición mala puede llevar hasta 33 jugadas, y la regla de las 50 jugadas no deja mucho margen. Aprenderlo enseña muchísimo sobre coordinar piezas.", fen:"8/8/8/3k4/8/3BK3/2N5/8 w - - 0 1"},
+  {t:"info", h:"La esquina correcta", text:"Solo se puede forzar el mate en una esquina del color del alfil. Con alfil de casillas claras, como acá, las esquinas buenas son a8 y h1. Si el rey rival se refugia en una esquina oscura (a1 o h8), hay que sacarlo de ahí y llevarlo por el borde hasta la esquina buena.", fen:"8/8/8/3k4/8/3BK3/2N5/8 w - - 0 1", marks:{a8:"g",h1:"g",a1:"r",h8:"r"}},
+  {t:"info", h:"El plan en tres fases", text:"1) Llevar el rey rival al borde, con tu rey en el centro y las tres piezas juntas, sin dejar ninguna colgada. 2) Empujarlo por el borde hasta la esquina del color del alfil. 3) Dar mate. La fase 2 es la difícil: para eso está el método de Deletang, con la W del caballo."},
+  {t:"info", h:"La posición de mate", text:"El rey blanco en b6 controla a7 y b7, el caballo cubre b8 y el alfil da jaque por la diagonal. Las tres piezas trabajan juntas.", fen:"k7/3N4/1K6/3B4/8/8/8/8 b - - 0 1", marks:{a8:"r",a7:"y",b7:"y",b8:"y"}},
+  {t:"move", h:"Mate en 1", text:"El caballo ya cubre b8 y tu rey, a7 y b7. Falta el jaque.", fen:"k7/8/NK6/8/8/8/8/1B6 w - - 0 1", goal:"mate", ok:"¡Mate con el alfil por la diagonal larga!", hint:"El alfil da jaque por la diagonal larga."},
+  {t:"line", h:"Mate en 2", text:"Jaque con el alfil y después el caballo da el golpe final.", fen:"k7/8/BK6/2N5/8/8/8/8 w - - 0 1", line:"Bb7+ Kb8 Na6#", alts:[[],["Nd7#"]], notes:{0:"Jaque: el rey solo puede ir a b8.",2:"Esta vez el que da mate es el caballo, con el alfil cubriendo a8 y c8."}, ok:"¡Mate! El alfil cubre a8 y c8, el rey cubre a7 y c7."},
+  {t:"line", h:"Mate en 3", text:"Una jugada tranquila del alfil deja al rey negro yendo y viniendo entre a8 y b8.", fen:"k7/8/1K6/2N5/8/8/8/1B6 w - - 0 1", line:"Bf5 Kb8 Na6+ Ka8 Be4#", alts:[[],[],[]], notes:{0:"El alfil le quita c8: el rey solo puede ir a b8 y volver.",2:"Jaque con el caballo, que desde a6 va a seguir cubriendo b8.",4:"Mate en la esquina del color del alfil."}, ok:"¡Mate en 3!"},
+  {t:"info", h:"La W del caballo", text:"El rey negro está pegado a h8, la esquina equivocada (es oscura). Para llevarlo hasta a8 por la octava fila, el caballo recorre una W: f7, e5, d7, c5 y b7. Mientras tanto, el alfil y el rey le cierran el paso para que no se escape hacia el centro.", fen:"6k1/5N2/5K2/8/4B3/8/8/8 w - - 0 1", arrows:["f7e5","e5d7","d7c5","c5b7"], marks:{a8:"g",h8:"r"}},
+  {t:"line", h:"Fase 2, parte 1: sale de la esquina", text:"Jugá las blancas. El rival se defiende de la mejor manera posible.", fen:"6k1/5N2/5K2/8/4B3/8/8/8 w - - 0 1", line:"Bf5 Kf8 Bh7 Ke8 Ne5 Kd8 Ke6 Kc7 Nd7", alts:[["Bg6","Bd3","Bc2","Bb1"],[],[],["Be4"],[]], notes:{0:"El alfil corta la diagonal c8-h3: el rey negro no puede escaparse por e6 ni d7.",2:"Le quitamos g8: el rey tiene que ir hacia la izquierda.",4:"Primer paso de la W: el caballo baja a e5 y controla d7 y c6.",6:"El rey blanco acompaña y le quita d7 y d6.",8:"Segundo paso de la W: el caballo sube a d7 y le quita b8 y c5."}, ok:"El rey negro ya dejó la esquina equivocada."},
+  {t:"line", h:"Parte 2: no lo dejes escapar", text:"El rey negro intenta huir por el centro hacia a1, la otra esquina oscura. Hay que devolverlo a la octava fila.", fen:"8/1k1N3B/4K3/8/8/8/8/8 w - - 0 1", line:"Bd3 Kc6 Be2 Kc7 Bf3 Kc8 Kd6 Kd8 Bh5 Kc8 Nc5 Kd8 Nb7+", alts:[[],["Bf1","Bc4","Ba6"],["Bb5"],[],[],[],["Ne6+"]], notes:{0:"El alfil vuelve a la diagonal a6-f1: le corta b5 y c4, así el rey no se escapa hacia a1.",2:"Jugada de espera: el alfil sigue en la misma diagonal y le pasamos el turno al rival.",4:"El alfil pasa a la diagonal larga: le quita b7 y c6.",6:"El rey sube y le quita c7.",8:"Otra jugada de espera, ahora en la diagonal e8-h5: le quita e8.",10:"Tercer paso de la W: el caballo baja a c5, rumbo a b7.",12:"Último paso de la W: jaque desde b7. El rey negro queda atrapado cerca de a8."}, ok:"El rey negro está en el lado bueno del tablero."},
+  {t:"line", h:"Parte 3: el mate", text:"Ahora sí, a la esquina del color del alfil.", fen:"2k5/1N6/3K4/7B/8/8/8/8 w - - 0 1", line:"Kc6 Kb8 Kb6 Ka8 Kc7 Ka7 Be2 Ka8 Nd6 Ka7 Nc8+ Ka8 Bf3#", alts:[[],["Bg4","Be2","Nd6"],["Bg6","Bf7","Be8","Bg4","Bf3","Be2","Bd1","Nc5","Nd6"],[],[],[],[]], notes:{0:"El rey blanco se acerca.",2:"Los reyes enfrentados: al negro le quedan a8 y c8.",4:"Le quitamos b8: el rey negro queda entre a8 y a7.",6:"El alfil le quita a6.",8:"El caballo va hacia c8 para dar jaque.",10:"Jaque: el rey solo puede volver a a8.",12:"¡Mate en a8, la esquina del color del alfil!"}, ok:"¡Lo lograste! Esa es toda la técnica."},
+  {t:"info", h:"Lo que hay que recordar", text:"No hace falta memorizar la línea jugada por jugada. Recordá las ideas: el rey rival al borde, la esquina del color del alfil, la W del caballo (f7-e5-d7-c5-b7, o su espejo según la esquina) y las jugadas de espera del alfil, que no pierde su diagonal. Y contá: tenés 50 jugadas.", fen:"k1N5/2K5/8/8/8/5B2/8/8 b - - 0 1", marks:{a8:"r"}},
+  {t:"play", mode:"kbn", h:"Práctica libre", text:"Posición al azar contra la máquina: llevá el rey al borde, después a la esquina del color del alfil y dale mate en menos de 50 jugadas. Si dejás una pieza colgada, el rival la come y es tablas."}
  ]}
 ];

@@ -5,6 +5,7 @@
   "description": "App para aprender aperturas de ajedrez: lecciones, práctica guiada y exámenes con repetición espaciada.",
   "scripts": {
     "validate": "node scripts/validate.js",
+    "check-kbn": "node --max-old-space-size=4096 scripts/kbnk.js --check",
     "build": "node scripts/validate.js && node scripts/build.js",
     "serve": "node scripts/build.js && node scripts/serve.js",
     "icons": "node scripts/icons.js"

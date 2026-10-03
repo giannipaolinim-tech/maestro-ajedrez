@@ -240,14 +240,16 @@ function streak(){
 /* ---------- Navegación (con historial: el botón atrás de Android vuelve dentro de la app) ---------- */
 // d = profundidad en el historial (inicio = 0), para que Inicio vuelva directo.
 // grp = familia elegida en los filtros de variantes.
-let state={view:'home',tab:'leccion',sub:null,grp:null,d:0};
+let state={view:'home',tab:'leccion',sec:null,sub:null,grp:null,d:0};
 let board=null, timer=null, keyHandler=null;
 function clearTimer(){if(timer){clearTimeout(timer);timer=null;}}
-function snap(){return {view:state.view,op:OP.id,tab:state.tab,sub:state.sub?JSON.parse(JSON.stringify(state.sub)):null,grp:state.grp,d:state.d};}
+function snap(){return {view:state.view,op:OP.id,tab:state.tab,sec:state.sec,sub:state.sub?JSON.parse(JSON.stringify(state.sub)):null,grp:state.grp,d:state.d};}
 function restore(s){
-  if(!s||!s.view){state={view:'home',tab:'leccion',sub:null,grp:null,d:0}; return;}
+  if(!s||!s.view){state={view:'home',tab:'leccion',sec:null,sub:null,grp:null,d:0}; return;}
   const o=OPENINGS.find(x=>x.id===s.op); if(o){OP=o; IDX=IDXS[o.id];}
-  state={view:s.view,tab:s.tab||'leccion',sub:s.sub||null,grp:s.grp||null,d:s.d||0};
+  // 'school' es la vista vieja de la Escuela, hoy dentro de Aprender.
+  state={view:s.view==='school'?'learn':s.view,tab:s.tab||'leccion',sec:s.sec||null,sub:s.sub||null,grp:s.grp||null,d:s.d||0};
+  if(state.view==='learn'&&state.sub&&!state.sec){const m=SCHOOL.find(x=>x.id===state.sub.mod); if(m) state.sec=m.sec;}
 }
 function remember(){try{history.replaceState(snap(),'');}catch(e){}}
 function nav(patch,push){Object.assign(state,patch); if(push) state.d++; try{history[push?'pushState':'replaceState'](snap(),'');}catch(e){} render();}
@@ -258,15 +260,20 @@ document.addEventListener('keydown',e=>{if(keyHandler&&!e.altKey&&!e.ctrlKey&&!e
 const TABS=[['leccion','Aprender'],['practica','Practicar'],['examen','Examen'],['progreso','Progreso']];
 const TAB_NAME={leccion:'Aprender',practica:'Practicar',examen:'Examen',progreso:'Progreso'};
 function renderNav(){
-  const cur=state.view==='home'?'home':state.view==='school'?'escuela':state.tab;
-  $('#nav').innerHTML=[['home','Inicio'],['escuela','Escuela']].concat(TABS).map(t=>'<button data-t="'+t[0]+'"'+(cur===t[0]?' class="on" aria-current="page"':'')+'>'+ico(t[0])+'<span>'+t[1]+'</span></button>').join('');
+  const cur=state.view==='home'?'home':state.view==='learn'?'leccion':state.tab;
+  $('#nav').innerHTML=[['home','Inicio']].concat(TABS).map(t=>'<button data-t="'+t[0]+'"'+(cur===t[0]?' class="on" aria-current="page"':'')+'>'+ico(t[0])+'<span>'+t[1]+'</span></button>').join('');
 }
 $('#nav').onclick=e=>{const b=e.target.closest('[data-t]'); if(b) goTab(b.dataset.t);};
 function goTab(t){
   if(t==='home'){ if(state.view==='home') return; if(state.d>0) history.go(-state.d); else nav({view:'home',sub:null}); return; }
-  const target=t==='escuela'?{view:'school',sub:null}:{view:'op',tab:t,sub:null};
+  const target=t==='leccion'?{view:'learn',sec:null,sub:null}:{view:'op',tab:t,sub:null};
   if(state.view==='home'){ nav(Object.assign(target,{grp:null}),true); return; }
-  if(t==='escuela'?state.view==='school':(state.view==='op'&&t===state.tab)){
+  if(t==='leccion'&&state.view==='learn'){
+    if(state.sub||state.sec){ if(state.d>1) history.go(-(state.d-1)); else nav({sec:null,sub:null}); }
+    else window.scrollTo(0,0);
+    return;
+  }
+  if(state.view==='op'&&t===state.tab&&t!=='leccion'){
     if(state.sub){ if(state.view==='op'&&state.tab==='examen') X=null; if(state.d>1) history.go(-(state.d-1)); else nav({sub:null}); }
     else window.scrollTo(0,0);
     return;
@@ -279,7 +286,7 @@ function render(){
   renderNav(); window.scrollTo(0,0);
   const app=$('#app');
   if(state.view==='home'){ app.innerHTML=homeHTML(); bindHome(); return; }
-  if(state.view==='school'){ app.innerHTML='<main id="pane"></main>'; escuela(); return; }
+  if(state.view==='learn'){ app.innerHTML='<main id="pane"></main>'; aprender(); return; }
   lsSet(LAST_OP_KEY,OP.id);
   app.innerHTML=(state.sub?'':opBar())+'<main id="pane"></main>';
   app.querySelectorAll('.opbar [data-op]').forEach(b=>b.onclick=()=>{const o=OPENINGS.find(x=>x.id===b.dataset.op); if(o!==OP){setOp(o); nav({sub:null,grp:null});}});
@@ -301,7 +308,7 @@ function homeHTML(){
     '<div class="top-r"><span class="pill streak'+(sk.n?'':' off')+'" title="Días seguidos estudiando">'+ico('flame')+sk.n+(sk.n===1?' día':' días')+'</span>'+
     '<button id="theme" class="icon-btn" aria-label="'+THEME_LABEL[theme]+'. Cambiar a '+THEME_LABEL[thm].toLowerCase()+'">'+ico(theme)+'</button></div></header>'+
     '<section class="hero"><img class="wm" alt="" src="'+PIECES.wN+'"><h1>'+hero.h+'</h1><p>'+hero.p+'</p><button class="btn wh" id="heroGo" data-a="'+hero.a+'">'+ico('practica')+hero.b+'</button></section>'+
-    schoolCard()+
+    learnCard()+
     '<h2 class="sec">Tus repertorios<small>'+REPS.length+'</small></h2><section class="ops">'+REPS.map(opCard).join('')+'</section>'+
     '<h2 class="sec">Para empezar<small>'+BASICS.length+'</small></h2><section class="ops">'+BASICS.map(opCard).join('')+'</section>'+
     '<p class="credit">Piezas: cburnett (CC BY-SA 3.0), vía lichess. Motor de reglas: chess.js. '+VER+'</p>';
@@ -314,13 +321,13 @@ function opCard(o){
     '<span class="side '+o.side+'"><i></i>Con '+sideName(o.side)+' · '+o.lines.length+' variantes</span>'+tag+bar(m)+'</span></button>';
 }
 function bindOpCards(){document.querySelectorAll('.op[data-op]').forEach(b=>b.onclick=()=>{setOp(OPENINGS.find(o=>o.id===b.dataset.op)); nav({view:'op',tab:'leccion',sub:null,grp:null},true);});}
-function schoolCard(){
-  const d=SCHOOL.filter(m=>schoolDone(m.id)).length, nx=SCHOOL.find(m=>!schoolDone(m.id));
-  return '<h2 class="sec">Escuela<small>'+d+' de '+SCHOOL.length+'</small></h2><button class="op school" id="toSchool"><span class="sc-ic">'+ico('escuela')+'</span><span class="op-b">'+
-    '<span class="op-n">'+(nx?(d?'Seguí con: ':'Empezá por: ')+esc(nx.title):'Escuela completa')+'</span><span class="side">Reglas, etapas del juego, táctica, mates y finales</span>'+bar(Math.round(100*d/SCHOOL.length))+'</span></button>';
+function learnCard(){
+  const d=SCHOOL.filter(m=>schoolDone(m.id)).length, nx=nextMod();
+  return '<h2 class="sec">Aprender<small>'+d+' de '+SCHOOL.length+' módulos</small></h2><button class="op school" id="toLearn"><span class="sc-ic">'+ico('escuela')+'</span><span class="op-b">'+
+    '<span class="op-n">'+(nx?(d?'Seguí con: ':'Empezá por: ')+esc(nx.title):'Todos los módulos completos')+'</span><span class="side">Fundamentos, táctica y finales'+(nx?' · '+esc((SECTIONS.find(x=>x.id===nx.sec)||{}).title||''):'')+'</span>'+bar(Math.round(100*d/SCHOOL.length))+'</span></button>';
 }
 function bindHome(){
-  $('#toSchool').onclick=()=>nav({view:'school',sub:null,grp:null},true);
+  $('#toLearn').onclick=()=>{const nx=nextMod(); nav(nx?{view:'learn',sec:nx.sec,sub:{mod:nx.id,step:0},grp:null}:{view:'learn',sec:null,sub:null,grp:null},true);};
   document.querySelectorAll('.op[data-op]').forEach(b=>b.onclick=()=>{setOp(OPENINGS.find(o=>o.id===b.dataset.op)); nav({view:'op',tab:'leccion',sub:null,grp:null},true);});
   $('#theme').onclick=()=>{theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]; lsSet(THEME_KEY,theme); applyTheme(); toast(THEME_LABEL[theme]); render();};
   $('#heroGo').onclick=()=>{
@@ -369,7 +376,7 @@ function studyLayout(title,sub,backLabel){
 }
 const upOne=()=>state.d>1?history.back():nav({sub:null});
 
-/* ----- Escuela ----- */
+/* ----- Aprender: secciones y módulos ----- */
 const SCHOOL_KEY='maestro-ajedrez-school';
 let sch={}; try{sch=JSON.parse(lsGet(SCHOOL_KEY)||'{}')||{};}catch(e){sch={};}
 const schRec=id=>sch[id]||(sch[id]={done:false,ex:{}});
@@ -380,6 +387,8 @@ const exSolved=m=>Object.keys((sch[m.id]||{}).ex||{}).length;
 const normSan=s=>s.replace(/[+#?!]/g,'');
 // Si el texto del acierto ya arranca con una exclamación, no le sumamos otra.
 const praise=(ok,pre)=>ok&&ok[0]==='¡'?ok:'<b>'+pre+'</b> '+(ok||'');
+const secMods=id=>SCHOOL.filter(m=>m.sec===id);
+const nextMod=()=>SCHOOL.find(m=>!schoolDone(m.id));
 // Marcas (debajo de las piezas) y flechas (encima) sobre el tablero.
 const MARK={g:'rgba(123,218,74,.6)',r:'rgba(255,92,108,.55)',y:'rgba(255,213,79,.65)',b:'rgba(91,140,255,.55)'};
 function overlay(marks,arrows){
@@ -389,33 +398,95 @@ function overlay(marks,arrows){
     (arrows||[]).map(a=>{const p=board.xy(a.slice(0,2)), q=board.xy(a.slice(2,4)), x1=p[0]+.5, y1=p[1]+.5, x2=q[0]+.5, y2=q[1]+.5, d=Math.hypot(x2-x1,y2-y1), k=(d-.42)/d, j=.3/d;
       return '<line x1="'+(x1+(x2-x1)*j).toFixed(3)+'" y1="'+(y1+(y2-y1)*j).toFixed(3)+'" x2="'+(x1+(x2-x1)*k).toFixed(3)+'" y2="'+(y1+(y2-y1)*k).toFixed(3)+'" stroke="rgba(255,159,67,.92)" stroke-width=".16" stroke-linecap="round" marker-end="url(#ah)"/>';}).join('');
 }
-function escuela(){
+function modRow(m,k,nx){
+  const dn=schoolDone(m.id), ec=exCount(m);
+  return '<button class="mod'+(dn?' done':'')+(m===nx?' next':'')+'" data-mod="'+m.id+'"><span class="mnum">'+(dn?ico('check'):k+1)+'</span><img alt="" src="'+PIECES[m.icon]+'">'+
+    '<span class="mb"><b>'+esc(m.title)+'</b><span>'+esc(m.desc)+'</span><span class="who">'+m.steps.length+' pasos · '+Math.min(exSolved(m),ec)+' de '+ec+' ejercicios</span></span></button>';
+}
+function secHead(title,sub){return '<div class="shead"><button id="secBack" class="backb" aria-label="Volver">'+ico('back')+'</button><div><h3 class="lt">'+esc(title)+'</h3><span class="lsub">'+esc(sub||'')+'</span></div></div>';}
+function aprender(){
   const pane=$('#pane');
-  if(!state.sub){
-    const d=SCHOOL.filter(m=>schoolDone(m.id)).length, nx=SCHOOL.find(m=>!schoolDone(m.id));
-    pane.innerHTML='<div class="ttl"><span class="ic escuela">'+ico('escuela')+'</span><h2>Escuela</h2></div>'+
-      '<p class="lead">Lo básico del ajedrez, paso a paso: reglas, cómo pensar en cada etapa de la partida, táctica, mates y finales. Cada módulo combina explicación y ejercicios en el tablero.</p>'+
-      '<div class="panel"><div class="big">'+ring(Math.round(100*d/SCHOOL.length))+'<div><h3>'+(nx?(d?'Seguí con: ':'Empezá por: ')+esc(nx.title):'¡Escuela completa!')+'</h3><p>'+d+' de '+SCHOOL.length+' módulos completados.</p></div></div>'+
-      '<button class="btn wide" id="goMod" data-mod="'+(nx||SCHOOL[0]).id+'">'+ico('practica')+(nx?(d?'Continuar':'Empezar'):'Repasar desde el principio')+'</button></div>'+
-      '<div class="path">'+SCHOOL.map((m,k)=>{const dn=schoolDone(m.id), ec=exCount(m);
-        return '<button class="mod'+(dn?' done':'')+(m===nx?' next':'')+'" data-mod="'+m.id+'"><span class="mnum">'+(dn?ico('check'):k+1)+'</span><img alt="" src="'+PIECES[m.icon]+'">'+
-          '<span class="mb"><b>'+esc(m.title)+'</b><span>'+esc(m.desc)+'</span><span class="who">'+m.steps.length+' pasos · '+Math.min(exSolved(m),ec)+' de '+ec+' ejercicios</span></span></button>';}).join('')+'</div>'+
-      '<h2 class="sec">Aperturas para empezar<small>'+BASICS.length+'</small></h2><p class="lead">Cuando termines los módulos, elegí una con blancas y una con negras: tienen lección, práctica y examen como las demás.</p>'+
-      '<section class="ops">'+BASICS.map(opCard).join('')+'</section>';
-    pane.querySelectorAll('[data-mod]').forEach(b=>b.onclick=()=>nav({sub:{mod:b.dataset.mod,step:0}},true));
-    bindOpCards(); return;
+  if(state.sub){ modulePlayer(); return; }
+  const back=()=>{ if(state.d>1) history.back(); else nav({sec:null}); };
+  const S=SECTIONS.find(x=>x.id===state.sec);
+  if(!S){
+    const nx=nextMod();
+    pane.innerHTML=ttl('leccion')+'<p class="lead">Elegí qué estudiar. Cada módulo combina explicación y ejercicios en el tablero.</p>'+
+      (nx?'<h2 class="sec">Seguí por acá</h2><div class="path">'+modRow(nx,SCHOOL.indexOf(nx),nx)+'</div>':'')+
+      '<h2 class="sec">Secciones</h2><div class="secs">'+SECTIONS.map(s=>{
+        let meta, pct;
+        if(s.id==='aperturas'){ const keys=OPENINGS.flatMap(o=>Object.keys(IDXS[o.id].nodes)); pct=mastery(keys); meta=OPENINGS.length+' aperturas'; }
+        else { const ms=secMods(s.id), d=ms.filter(m=>schoolDone(m.id)).length; pct=Math.round(100*d/ms.length); meta=d+' de '+ms.length+' módulos'; }
+        return '<button class="secc sec-'+s.id+'" data-sec="'+s.id+'"><img alt="" src="'+PIECES[s.icon]+'"><b>'+esc(s.title)+'</b><span>'+esc(s.desc)+'</span><span class="who">'+meta+'</span>'+bar(pct)+'</button>';
+      }).join('')+'</div>';
+    pane.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>nav({sec:b.dataset.sec},true));
+    pane.querySelectorAll('[data-mod]').forEach(b=>b.onclick=()=>{const m=SCHOOL.find(x=>x.id===b.dataset.mod); nav({sec:m.sec,sub:{mod:m.id,step:0}},true);});
+    return;
   }
+  if(S.id==='aperturas'){
+    pane.innerHTML=secHead('Aperturas',OPENINGS.length+' aperturas')+'<p class="lead">'+S.desc+' Cada una tiene lección, práctica y examen.</p>'+
+      '<h2 class="sec">Tus repertorios<small>'+REPS.length+'</small></h2><section class="ops">'+REPS.map(opCard).join('')+'</section>'+
+      '<h2 class="sec">Para empezar<small>'+BASICS.length+'</small></h2><section class="ops">'+BASICS.map(opCard).join('')+'</section>';
+    $('#secBack').onclick=back; bindOpCards(); return;
+  }
+  const ms=secMods(S.id), nx=ms.find(m=>!schoolDone(m.id));
+  let h=secHead(S.title,ms.filter(m=>schoolDone(m.id)).length+' de '+ms.length+' módulos completados')+'<p class="lead">'+S.desc+'</p><div class="path">'+ms.map((m,k)=>modRow(m,k,nx)).join('')+'</div>';
+  const plays=[]; ms.forEach(m=>m.steps.forEach((st,i)=>{if(st.t==='play') plays.push([m,i]);}));
+  if(plays.length) h+='<h2 class="sec">Práctica libre</h2>'+plays.map(([m,i])=>'<button class="allcard" data-play="'+m.id+'|'+i+'">'+ico('practica')+'<span><b>'+esc(m.title)+'</b><span>Contra la máquina, desde una posición al azar</span></span></button>').join('');
+  pane.innerHTML=h;
+  $('#secBack').onclick=back;
+  pane.querySelectorAll('[data-mod]').forEach(b=>b.onclick=()=>nav({sub:{mod:b.dataset.mod,step:0}},true));
+  pane.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>{const p=b.dataset.play.split('|'); nav({sub:{mod:p[0],step:+p[1]}},true);});
+}
+
+/* ----- Práctica libre: mate con alfil y caballo contra la máquina ----- */
+const isLight=sq=>(FILES.indexOf(sq[0])+(+sq[1]))%2===0;
+function findPiece(g,color,type){for(let r=0;r<8;r++)for(let c=0;c<8;c++){const sq=FILES[c]+(r+1), p=g.get(sq); if(p&&p.color===color&&p.type===type) return sq;} return null;}
+function kbnStart(){
+  const rnd=n=>Math.floor(Math.random()*n), f=s=>s&7, r=s=>s>>3, dist=(a,b)=>Math.max(Math.abs(f(a)-f(b)),Math.abs(r(a)-r(b))), edge=s=>Math.min(f(s),7-f(s),r(s),7-r(s));
+  for(let k=0;k<2000;k++){
+    const wk=rnd(64), wb=rnd(64), wn=rnd(64), bk=rnd(64);
+    if(new Set([wk,wb,wn,bk]).size<4||dist(wk,bk)<2||dist(wb,bk)<2||dist(wn,bk)<2||edge(bk)<2) continue;
+    const b=Array(64).fill(''); b[wk]='K'; b[wb]='B'; b[wn]='N'; b[bk]='k';
+    const rows=[]; for(let rr=7;rr>=0;rr--){let s='',e=0; for(let ff=0;ff<8;ff++){const c=b[rr*8+ff]; if(!c) e++; else {if(e) s+=e; e=0; s+=c;}} if(e) s+=e; rows.push(s);}
+    const pl=rows.join('/'), t=new Chess();
+    if(!t.load(pl+' b - - 0 1')||t.in_check()) continue; // con blancas por mover, el negro no puede estar en jaque
+    return pl+' w - - 0 1';
+  }
+  return '8/8/8/3k4/8/3BK3/2N5/8 w - - 0 1';
+}
+// Defensa heurística: come si puede (tablas), y si no busca espacio, el centro y alejarse de las esquinas buenas.
+function kbnDefense(g){
+  const ms=g.moves({verbose:true}); if(!ms.length) return null;
+  const cap=ms.find(m=>m.captured); if(cap) return cap;
+  const bsq=findPiece(g,'w','b'), corners=bsq&&isLight(bsq)?['a8','h1']:['a1','h8'];
+  let best=null, bs=-1e9;
+  for(const m of ms){
+    const fi=FILES.indexOf(m.to[0]), ri=+m.to[1]-1, t=new Chess(g.fen()); t.move(m.san);
+    const f=t.fen().split(' '); f[1]='b'; f[3]='-'; const u=new Chess(); u.load(f.join(' '));
+    const mob=u.moves().length, edge=Math.min(fi,7-fi,ri,7-ri);
+    const cd=Math.min(...corners.map(c=>Math.max(Math.abs(FILES.indexOf(c[0])-fi),Math.abs(+c[1]-1-ri))));
+    const sc=mob*1.2+edge*2.5+cd*1.5+Math.random()*.6;
+    if(sc>bs){bs=sc; best=m;}
+  }
+  return best;
+}
+
+/* ----- Reproductor de módulos ----- */
+function modulePlayer(){
+  const pane=$('#pane');
   const m=SCHOOL.find(x=>x.id===state.sub.mod); if(!m){nav({sub:null}); return;}
   const N=m.steps.length; let i=Math.max(0,Math.min(N-1,state.sub.step||0)), cur=null;
-  pane.innerHTML=studyLayout(m.title,'','Volver a la escuela');
+  pane.innerHTML=studyLayout(m.title,'','Volver');
   $('#listBack').onclick=upOne;
   $('#ctrl').innerHTML='<button data-a="prev" class="btn soft" aria-label="Paso anterior">'+ico('prev')+'</button><button data-a="next" class="btn bl x2" id="nextB"></button>';
   $('#ctrl').onclick=e=>{const b=e.target.closest('[data-a]'); if(!b||b.disabled) return; if(b.dataset.a==='prev') go(i-1); else if(i<N-1) go(i+1); else finishMod();};
   keyHandler=e=>{if(e.key==='ArrowRight'&&i<N-1){e.preventDefault(); go(i+1);} else if(e.key==='ArrowLeft'){e.preventDefault(); go(i-1);}};
   const rec=schRec(m.id);
+  const solvedEx=()=>{rec.ex[i]=1; saveSch(); markDay();};
   const okMove=(st,san,t)=>st.goal==='mate'?t.in_checkmate():st.sol.some(x=>normSan(x)===normSan(san));
   function solution(){return cur.g.moves({verbose:true}).find(mv=>{const t=new Chess(cur.g.fen()); t.move(mv.san); return okMove(cur.st,mv.san,t);});}
-  function go(n){if(n<0||n>=N) return; i=n; state.sub.step=n; remember(); show();}
+  function go(n){if(n<0||n>=N) return; clearTimer(); i=n; state.sub.step=n; remember(); show();}
   function finishMod(){rec.done=true; saveSch(); markDay(); toast('¡Módulo completado: '+m.title+'!'); upOne();}
   function setNext(){
     const b=$('#nextB'), open=cur.st.t!=='info'&&!cur.done&&!rec.ex[i];
@@ -424,12 +495,65 @@ function escuela(){
     $('.lsub').textContent='Paso '+(i+1)+' de '+N;
   }
   function fb(cls,html){$('#fb').className='fb '+cls; $('#fb').innerHTML=html;}
+  const sideOf=c=>c==='w'?'blancas':'negras';
+  // Línea guiada: el usuario juega su bando y el rival responde solo.
+  function lineMove(r,dragged){
+    const st=cur.st, exp=cur.line[cur.p];
+    if(normSan(r.san)===normSan(exp)){
+      cur.g.move(r.san); cur.played.push(r.san); cur.p++; cur.tries=0;
+      board.set(cur.g,{last:{from:r.from,to:r.to},flash:{sq:r.to,kind:'good'},anim:!dragged});
+      let msg=(st.notes||{})[cur.p-1]||'Bien.';
+      $('#moves').innerHTML=moveList(cur.played,cur.played.length-1,false);
+      if(cur.p>=cur.line.length){ cur.done=true; solvedEx(); fb('good',praise(st.ok,'¡Bien!')); setNext(); return; }
+      fb('good',msg); cur.busy=true;
+      timer=setTimeout(()=>{
+        const rr=cur.g.move(cur.line[cur.p]); cur.played.push(rr.san); cur.p++; cur.busy=false;
+        board.set(cur.g,{last:{from:rr.from,to:rr.to},anim:true,canMove:true});
+        $('#moves').innerHTML=moveList(cur.played,cur.played.length-1,false);
+        const n2=(st.notes||{})[cur.p-1];
+        fb('',msg+'<br><span class="who">Las '+sideOf(rr.color)+' jugaron '+rr.san+'.</span>'+(n2?' '+n2:'')+' Te toca.');
+      },520);
+      return;
+    }
+    const alts=(st.alts||[])[cur.p/2]||[];
+    const t=new Chess(cur.g.fen()); t.move(r.san);
+    if(alts.some(a=>normSan(a)===normSan(r.san))&&t.in_checkmate()){
+      cur.g.move(r.san); cur.played.push(r.san); cur.done=true; solvedEx();
+      board.set(cur.g,{last:{from:r.from,to:r.to},flash:{sq:r.to,kind:'good'},anim:!dragged}); $('#moves').innerHTML=moveList(cur.played,cur.played.length-1,false);
+      fb('good','<b>¡Mate!</b> Por otro camino, pero igual de rápido.'); setNext(); return;
+    }
+    if(alts.some(a=>normSan(a)===normSan(r.san))){ board.set(cur.g,{last:cur.last,canMove:true}); fb('','<b>'+r.san+'</b> también gana igual de rápido, pero acá seguimos el método. Buscá otra.'); return; }
+    cur.tries++; buzz(70);
+    const ev=new Chess(cur.g.fen()).move(exp);
+    board.set(cur.g,{last:cur.last,flash:{sq:r.to,kind:'bad'},hint:cur.tries>=2?ev.from:null,canMove:true});
+    let msg='<b>'+r.san+'</b> no es la jugada del método.'+(t.in_stalemate()?' ¡Y encima ahoga!':'')+(cur.tries>=2?' Mirá la pieza marcada.':' Probá de nuevo.');
+    if(cur.tries>=3) msg+='<br><button class="link-b" id="showSol">Ver la jugada</button>';
+    fb('bad',msg);
+    const ss=$('#showSol'); if(ss) ss.onclick=()=>lineMove(new Chess(cur.g.fen()).move(exp),false);
+  }
+  // Práctica libre de alfil y caballo contra la máquina.
+  function playMove(r,dragged){
+    cur.g.move(r.san); cur.n++; board.set(cur.g,{last:{from:r.from,to:r.to},anim:!dragged});
+    if(cur.g.in_checkmate()){ cur.done=true; solvedEx(); fb('good','<b>¡Mate en '+cur.n+' jugadas!</b> '+(cur.n<=33?'Excelente técnica.':'Lo lograste: con práctica sale más rápido.')); setNext(); return; }
+    if(cur.g.in_stalemate()){ cur.done=true; fb('bad','<b>Ahogado:</b> el rey negro no tiene jugadas y no está en jaque. Tablas. Probá con otra posición.'); return; }
+    if(cur.n>=50){ cur.done=true; fb('bad','<b>50 jugadas sin mate:</b> tablas. Probá con otra posición.'); return; }
+    cur.busy=true;
+    timer=setTimeout(()=>{
+      const bm=kbnDefense(cur.g), rr=cur.g.move(bm.san); cur.busy=false; cur.last={from:rr.from,to:rr.to};
+      if(rr.captured){ cur.done=true; board.set(cur.g,{last:cur.last,anim:true,flash:{sq:rr.to,kind:'bad'}}); fb('bad','<b>El rey negro se comió tu '+(rr.captured==='b'?'alfil':'caballo')+'.</b> Sin esa pieza no hay mate: tablas. Cuidá que tus piezas estén defendidas.'); return; }
+      board.set(cur.g,{last:cur.last,anim:true,canMove:true});
+      fb('','Jugada '+(cur.n+1)+' de 50.');
+    },420);
+  }
   board=new Board($('#board'),{orient:'w',
     onMove:(from,to,dragged)=>{
-      if(!cur||cur.st.t!=='move'||cur.done) return;
+      if(!cur||cur.done||cur.busy) return;
       const t=new Chess(cur.g.fen()), r=t.move({from,to,promotion:'q'}); if(!r) return;
+      if(cur.st.t==='line') return lineMove(r,dragged);
+      if(cur.st.t==='play') return playMove(r,dragged);
+      if(cur.st.t!=='move') return;
       if(okMove(cur.st,r.san,t)){
-        cur.done=true; rec.ex[i]=1; saveSch(); markDay();
+        cur.done=true; solvedEx();
         board.set(t,{last:{from:r.from,to:r.to},flash:{sq:r.to,kind:'good'},anim:!dragged});
         fb('good',praise(cur.st.ok,cur.st.goal==='mate'?'¡Jaque mate!':'¡Correcto!')); setNext(); return;
       }
@@ -450,26 +574,33 @@ function escuela(){
       if(cur.targets.includes(sq)){ cur.found.add(sq); board.set(cur.g,{last:cur.last}); }
       else { buzz(50); board.set(cur.g,{last:cur.last,flash:{sq,kind:'bad'}}); }
       const marks=Object.assign({},cur.st.marks); if(cur.st.from) marks[cur.st.from]='y'; cur.found.forEach(q=>{marks[q]='g';}); overlay(marks,null);
-      if(cur.found.size>=cur.need){ cur.done=true; rec.ex[i]=1; saveSch(); markDay(); fb('good',praise(cur.st.ok,'¡Bien!')); setNext(); }
+      if(cur.found.size>=cur.need){ cur.done=true; solvedEx(); fb('good',praise(cur.st.ok,'¡Bien!')); setNext(); }
       else fb('',cur.targets.includes(sq)?'Van '+cur.found.size+' de '+cur.need+'.':'<b>'+sq+'</b> no. Van '+cur.found.size+' de '+cur.need+'.');
     }});
   function show(){
-    const st=m.steps[i], g=new Chess(); if(st.fen) g.load(st.fen); if(st.moves) st.moves.split(' ').forEach(x=>g.move(x));
+    const st=m.steps[i], g=new Chess();
+    if(st.t==='play') g.load(kbnStart()); else { if(st.fen) g.load(st.fen); if(st.moves) st.moves.split(' ').forEach(x=>g.move(x)); }
     const h=g.history({verbose:true}), lm=h.length?h[h.length-1]:null;
-    cur={st,g,last:lm?{from:lm.from,to:lm.to}:null,tries:0,done:st.t==='info',found:new Set(),targets:[],need:0};
+    cur={st,g,last:lm?{from:lm.from,to:lm.to}:null,tries:0,done:st.t==='info',found:new Set(),targets:[],need:0,line:[],p:0,played:[],n:0,busy:false};
     board.orient=st.orient||(st.t==='info'?'w':g.turn());
-    const side=g.turn()==='w'?'blancas':'negras';
+    $('#moves').innerHTML='';
     let html='<h3 class="sh">'+esc(st.h)+'</h3><p class="note">'+st.text+'</p>';
-    if(st.t==='move'){
+    if(st.t==='move'||st.t==='line'){
       board.set(g,{last:cur.last,canMove:true}); overlay(st.marks,null);
-      html+='<p class="turn">Juegan '+side+'</p><div id="fb" class="fb'+(rec.ex[i]?' good':'')+'">'+(rec.ex[i]?'Ya lo resolviste antes. ¿Te sale de nuevo?':'Mové una pieza en el tablero.')+'</div>';
+      if(st.t==='line') cur.line=st.line.split(' ');
+      html+='<p class="turn">Juegan '+sideOf(g.turn())+'</p><div id="fb" class="fb'+(rec.ex[i]?' good':'')+'">'+(rec.ex[i]?'Ya lo resolviste antes. ¿Te sale de nuevo?':st.t==='line'?'Jugá las '+sideOf(g.turn())+': el rival responde solo.':'Mové una pieza en el tablero.')+'</div>';
     } else if(st.t==='tap'){
       cur.targets=st.targets||[...new Set(g.moves({square:st.from,verbose:true}).map(x=>x.to))];
       cur.need=st.need||cur.targets.length;
       board.set(g,{last:cur.last}); const mk=Object.assign({},st.marks); if(st.from) mk[st.from]='y'; overlay(mk,null);
       html+='<div id="fb" class="fb">Tocá las casillas en el tablero. Van 0 de '+cur.need+'.</div>';
+    } else if(st.t==='play'){
+      const light=isLight(findPiece(g,'w','b')), corners=light?['a8','h1']:['a1','h8'];
+      board.set(g,{canMove:true}); overlay({[corners[0]]:'g',[corners[1]]:'g'},null);
+      html+='<p class="turn">Juegan blancas</p><div id="fb" class="fb">Tu alfil es de casillas '+(light?'claras':'oscuras')+': las esquinas buenas son '+corners.join(' y ')+' (marcadas en verde). Jugada 1 de 50.</div><button class="btn soft wide" id="newPos">'+ico('restart')+'Otra posición</button>';
     } else { board.set(g,{last:cur.last}); overlay(st.marks,st.arrows); }
     $('#info').innerHTML=html; setNext();
+    const np=$('#newPos'); if(np) np.onclick=()=>{clearTimer(); show();};
   }
   show();
 }
@@ -478,7 +609,8 @@ function escuela(){
 function leccion(){
   const pane=$('#pane');
   if(!state.sub){
-    pane.innerHTML=ttl('leccion')+'<div class="about"><p>'+OP.intro+'</p><button id="more">Leer más</button></div><p class="lead">Elegí una variante y recorrela jugada por jugada.</p>'+linesHTML();
+    pane.innerHTML='<div class="ttl"><button id="toSecs" class="backb" aria-label="Volver a Aperturas">'+ico('back')+'</button><h2>'+esc(OP.name)+'</h2></div><div class="about"><p>'+OP.intro+'</p><button id="more">Leer más</button></div><p class="lead">Elegí una variante y recorrela jugada por jugada.</p>'+linesHTML();
+    $('#toSecs').onclick=()=>{ if(state.d>1) history.back(); else nav({view:'learn',sec:'aperturas',sub:null}); };
     $('#more').onclick=()=>{const a=$('.about'); a.classList.toggle('open'); $('#more').textContent=a.classList.contains('open')?'Leer menos':'Leer más';};
     bindLines(id=>nav({sub:{line:id,ply:0}},true)); return;
   }
