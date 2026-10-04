@@ -17,6 +17,10 @@ OPENINGS.forEach(op=>{
     const pre=PRE[op.id].l[l.id];
     l.op=op.id; l.arr=l.moves.split(' '); l.pos=pre[0]; l.mv=pre[1].split(' ');
   });
+  // Notas por posición y jugada (clave "fen4 SAN"): si una línea no comenta una jugada que otra sí,
+  // la lección muestra esa nota (por ejemplo, las primeras jugadas de las variantes nuevas).
+  op.noteMap={};
+  op.allLines.forEach(l=>Object.keys(l.notes).forEach(i=>{const k=f4(lineFen(l,+i))+' '+l.arr[i]; if(!(k in op.noteMap)) op.noteMap[k]=l.notes[i];}));
   // Puntos de elección: posición (clave fen4) y, por línea, qué opción toma en cada uno.
   op.choices.forEach(c=>{c.fen=PRE[op.id].f[PRE[op.id].c[c.id]]; c.key=f4(c.fen);});
   op.allLines.forEach(l=>{

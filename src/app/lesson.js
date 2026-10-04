@@ -40,7 +40,7 @@ function leccion(){
   }});
   const draw=anim=>{
     const n=state.sub.ply, g=new Chess(lineFen(l,n)), last=lineLast(l,n); board.set(g,{last,anim});
-    const note=n>0?(l.notes[n-1]||''):'';
+    const note=n>0?(l.notes[n-1]||OP.noteMap[f4(lineFen(l,n-1))+' '+l.arr[n-1]]||''):'';
     const who=n===0?'':((n-1)%2===1?'Negras':'Blancas');
     let txt=n===0?'<p class="turn">¡Arrancamos!</p><p class="note">Avanzá con la flecha azul o tocando la mitad derecha del tablero. La izquierda vuelve atrás.</p>':
       '<p class="said"><b>'+plyLabel(l.arr,n)+'</b><span class="who">'+who+' · jugada '+n+' de '+L+'</span></p>'+(note?'<p class="note">'+note+'</p>':'<p class="note quiet">Jugada natural de la variante.</p>');

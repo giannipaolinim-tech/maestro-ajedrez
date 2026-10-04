@@ -116,13 +116,13 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
 - **Posiciones precalculadas:** `build.js` inyecta `const PRE` (scripts/precompute.js), así al arrancar no se reproducen jugadas con chess.js. Antes tardaba unos 370 ms en la compu y ahora 2 ms. `l.pos[n]` es el índice de la FEN después de n jugadas; `lineFen(l,n)` y `lineLast(l,n)` dan la posición y la última jugada. Los mini tableros leen esa FEN directamente; chess.js queda solo para las jugadas del usuario en el tablero.
 - `buildIndex(op)` (repertoire.js) → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
 - **Tablero propio** (`Board`, board.js): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
-- **Puntos de elección y nivel** (repertoire.js, choices.js): `op.allLines` son todas las líneas y `op.lines` las activas. Una línea está activa si en cada punto de elección por el que pasa (`l.picks`) juega la opción elegida (`picked(op,c)`, guardada en `maestro-ajedrez-choices`; si no hay, la `def`). `rebuild(op)` rearma `op.lines`, el índice y las portadas. El resto de la app usa `op.lines` sin saber de elecciones, y el progreso no se pierde al cambiar, porque va por posición. La sección «Tu repertorio» está en la lista de variantes de la pestaña Aprender de cada apertura. El nivel (`maestro-ajedrez-level`: masters, r1…r4) elige qué estadísticas de `STATS` se muestran, permite «Elegir según mi nivel» (la opción con mejor resultado) y hace que en la práctica «Todo el repertorio» el rival elija pesado por lo que se juega en ese nivel.
+- **Puntos de elección y nivel** (repertoire.js, choices.js): `op.allLines` son todas las líneas y `op.lines` las activas. Una línea está activa si en cada punto de elección por el que pasa (`l.picks`) juega la opción elegida (`picked(op,c)`, guardada en `maestro-ajedrez-choices`; si no hay, la `def`). `rebuild(op)` rearma `op.lines`, el índice y las portadas. El resto de la app usa `op.lines` sin saber de elecciones, y el progreso no se pierde al cambiar, porque va por posición. La sección «Tu repertorio» está en la lista de variantes de la pestaña Aprender de cada apertura. El nivel (`maestro-ajedrez-level`: masters, r1…r4) elige qué estadísticas de `STATS` se muestran, permite «Elegir según mi nivel» (la opción con mejor resultado; solo si le saca 2 puntos o más a las demás, si no queda la recomendada; el sello «Mejor resultado» sigue la misma regla) y hace que en la práctica «Todo el repertorio» el rival elija pesado por lo que se juega en ese nivel.
 - **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
 - **Navegación** (nav.js): barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|learn|op, `tab`, `sec`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
 - **Selección visual** (ui.js, board.js y repertoire.js): las variantes se eligen con tarjetas de mini tablero (`mini(l,n,orient)` con l = línea, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` (`{line,n}`) = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
 - **Inicio** (home.js): tarjeta de Aprender con el próximo módulo pendiente, y tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
 - **Aprender** (`aprender()` en learn.js, vista `learn`): menú de secciones → lista de módulos (o de aperturas) → `modulePlayer()` (module.js). La pestaña Aprender de cada apertura (`op` + `leccion`) se abre desde la sección Aperturas. Los estados viejos con `view:'school'` se convierten a `learn`. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
-- **Lección** (lesson.js): recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
+- **Lección** (lesson.js): recorre una línea y muestra la nota del ply y, al final, el plan. Si la línea no comenta una jugada, usa la nota de otra línea con la misma posición y jugada (`op.noteMap`, clave `fen4 SAN`). Así las variantes nuevas no repiten las notas de las primeras jugadas. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
 - **Práctica** (practice.js): el rival juega solo (480 ms). Si el usuario se equivoca dos veces, se marca la jugada correcta. El modo `__all` elige al azar entre `opp[clave]`.
 - **Examen** (exam.js): 10 posiciones elegidas por prioridad de caja baja y atraso (con algo de azar), con un intento cada una. Se puede filtrar por grupo.
 - **Progreso / repetición espaciada** (store.js; la pestaña en progress.js): sistema Leitner de cajas 0–6 con `INTERVAL` en milisegundos. Acertar suma 1 caja y fallar vuelve a 0. "Dominado" = caja ≥ 3.
@@ -153,13 +153,21 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
 
 ## Repertorio actual (decisiones confirmadas por Gianni)
 
-**Caro-Kann con negras** — 15 variantes, 94 posiciones.
-- En la línea principal se juega la Clásica 4...Bf5 (descartada la Karpov 4...Nd7).
-- Clásica: principal con 6.h4, con 3.Nd2, 6.Nf3 y 6.Bc4.
-- Avance (3...Bf5 en todas): Short 4.Nf3, Tal 4.h4 h5, 4.Nc3 e6 5.g4 y 4.Bd3.
-- Panov: 4...Nf6 5.Nc3 e6.
-- Cambio: 4.Bd3 Nc6 con ...Bg4.
-- Alternativas: Dos Caballos, Fantasía 3.f3 e6, 2.c4, 2.d3 y 2.Bc4.
+**Caro-Kann con negras** — 66 variantes (48 activas con las elecciones por defecto), 383 posiciones. Ampliada el 2026-10-04 con el explorador (corte 1,5 %, prolongación a 10 jugadas).
+- **Puntos de elección:**
+  - `cuarta`, después de 4.Nxe4: la Clásica 4...Bf5 (recomendada, la decisión original de Gianni) o la Karpov 4...Nd7. La Karpov tiene 9 variantes: 5.Ng5, 5.Bc4, 5.Nf3, 5.Qe2…
+  - `av3`, contra el Avance: 3...Bf5 (recomendada) o 3...c5. La 3...c5 tiene 9 variantes.
+- **Clásica:** principal con 6.h4, con 3.Nd2, 6.Nf3 (con 10.c4 y con 10.Re1), 6.Bc4 (con 8.h4 y con 8.O-O), 6.Nh3 y 5.Bd3?! Qxd4.
+- **Avance 3...Bf5:**
+  - Short 4.Nf3, con 5.Be2 (6.Be3 c3 o c4, 6.O-O), 5.Bd3 y 5.Nc3.
+  - Tal 4.h4 h5, con 5.Bd3 (8.c3 u 8.Nd2) y 5.c4.
+  - También 4.Nc3 e6 5.g4, 4.Bd3, 4.Nd2, 4.g4 y 4.f4.
+- **Panov:** 4...Nf6 5.Nc3 e6, y por 4.Nf3 Nc6 5.c4.
+- **Cambio:** 4.Bd3 Nc6 (con 6.Bf4 y 6.h3), 4.Nf3 Nc6 (5.Bd3, 5.c3, 5.Bb5, 5.Nc3) y 4.Nc3.
+- **Alternativas:** Dos Caballos (6.d3, 6.Be2, 6.d4), Fantasía 3.f3 e6 (4.Nc3 Bb4 con 5.Bd2 y 5.a3), 2.c4, 2.d3, 2.Bc4 (4.Bb5+ y 4.Bb3), 2.Nf3 (3.e5 y 3.d3), 2.Qf3 y 2.Qh5.
+- **Pendiente de revisar con Stockfish** (prof. 20; hay que explorar la jugada nueva antes de cambiarla):
+  - Avance 4.Nf3 e6 5.Bd3 Bxd3 6.Qxd3: hoy se juega 6...Qb6 (−0,58), pero 6...c5 da −0,19. Aplica también a la línea 4.Bd3, por transposición.
+  - Dos Caballos 8.g4: hoy se juega 8...Bb4 (−0,70), pero 8...h6 da −0,31.
 
 **Viena con blancas** — 10 variantes, 46 posiciones.
 - Contra 2...Nf6, gambito 3.f4: 3...d5, 3...exf4 (con 4...Ng8 y con 4...Qe7), 3...d6 y 3...Nc6.
@@ -181,7 +189,7 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
 ## Advertencias sobre la teoría
 
 Las líneas las armó Claude sin motor. Son legales y consistentes, pero no están verificadas con Stockfish. Las más delicadas:
-- Caro-Kann, Avance 4.Nc3 e6 5.g4: está cortada a propósito en la jugada 8 porque es muy teórica.
+- Caro-Kann: las líneas que vienen del explorador están respaldadas por datos de Lichess y Stockfish (las jugadas propias). Las notas y los planes los escribió Claude. La línea 4.Nc3 e6 5.g4 del Avance ahora llega hasta la jugada 10, siguiendo lo más jugado.
 - Viena, 3...exf4 (las dos sublíneas) y 3.Bc4 Bc5 4.Qg4 Qf6: son muy tácticas.
 - Holandesa, Staunton y 2.Nc3 Nf6 3.Bg5 d5: conviene confirmar el orden de jugadas.
 

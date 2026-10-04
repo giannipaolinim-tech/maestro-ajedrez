@@ -51,8 +51,8 @@ function oppNext(){
   if(P.lineId==='__all'){
     const s=IDX.opp[keyOf(P.g)]; if(!s) return null;
     const a=[...s], st=posStats(OP.id,f4(P.g.fen()),level);
-    if(st&&st[0]){
-      const wts=a.map(m=>Math.max((st[1][m]||[0])[0],st[0]*0.01));
+    if(st){
+      const wts=a.map(m=>Math.max(+st[m]||0,10)); // frecuencia‰, mínimo 1 %
       let r=Math.random()*wts.reduce((x,y)=>x+y,0);
       for(let i=0;i<a.length;i++){r-=wts[i]; if(r<0) return a[i];}
     }
