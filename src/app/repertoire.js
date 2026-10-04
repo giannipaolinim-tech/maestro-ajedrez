@@ -29,7 +29,6 @@ const sideName=s=>s==='w'?'blancas':'negras';
 const keyOf=g=>OP.id+'|'+f4(g.fen());
 const REPS=OPENINGS.filter(o=>o.level!=='basico'), BASICS=OPENINGS.filter(o=>o.level==='basico');
 
-function groupName(id){return (OP.groups.find(g=>g.id===id)||{}).name||'';}
 const gShort=g=>g.name.split(' (')[0];
 const shortName=o=>o.short||o.name;
 
