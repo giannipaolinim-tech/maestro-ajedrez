@@ -3,6 +3,7 @@
 //   dist/sw.js, manifest, icons/  lo que necesita la PWA publicada en GitHub Pages
 // Uso: node scripts/build.js
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
+const { precompute } = require('./precompute.js');
 const root = path.join(__dirname, '..');
 const rd = p => fs.readFileSync(path.join(root, p), 'utf8');
 const dist = path.join(root, 'dist');
@@ -20,7 +21,10 @@ const APP = ['store', 'repertoire', 'board', 'ui', 'nav', 'home', 'learn', 'kbn'
 const app = ['(function(){', ...APP.map(f => rd('src/app/' + f + '.js')), '})();'].join('\n');
 
 const head = rd('src/head.html'), sw = rd('src/sw.js');
-const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), rd('src/school.js'), app].join('\n');
+// Posiciones de cada línea precalculadas (ver scripts/precompute.js): la app no reproduce jugadas al arrancar.
+const OPENINGS = new Function(rd('src/data.js') + ';return OPENINGS;')();
+const PRE = 'const PRE=' + JSON.stringify(precompute(OPENINGS)) + ';';
+const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), PRE, rd('src/school.js'), app].join('\n');
 
 // La versión depende del contenido: si nada cambió, el service worker no se reinstala.
 const v = crypto.createHash('sha256').update(head + body + sw).digest('hex').slice(0, 10);

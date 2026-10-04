@@ -36,7 +36,7 @@ function leccion(){
     go(state.sub.ply+(e.clientX-r.left>r.width/2?1:-1));
   }});
   const draw=anim=>{
-    const n=state.sub.ply, {g,last}=gameAt(l.arr,n); board.set(g,{last,anim});
+    const n=state.sub.ply, g=new Chess(lineFen(l,n)), last=lineLast(l,n); board.set(g,{last,anim});
     const note=n>0?(l.notes[n-1]||''):'';
     const who=n===0?'':((n-1)%2===1?'Negras':'Blancas');
     let txt=n===0?'<p class="turn">¡Arrancamos!</p><p class="note">Avanzá con la flecha azul o tocando la mitad derecha del tablero. La izquierda vuelve atrás.</p>':

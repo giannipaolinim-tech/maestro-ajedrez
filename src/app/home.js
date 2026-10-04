@@ -33,7 +33,7 @@ function opCard(o){
     st.fresh===all.length?'<span class="tag new">Nueva</span>':
     st.fresh?'<span class="tag new">'+st.fresh+' por aprender</span>':
     '<span class="tag ok">Al día</span>';
-  return '<button class="op" data-op="'+o.id+'">'+mini(o.cov.arr,o.cov.n,o.side)+'<span class="op-b"><span class="op-n">'+esc(o.name)+'</span>'+
+  return '<button class="op" data-op="'+o.id+'">'+mini(o.cov.line,o.cov.n,o.side)+'<span class="op-b"><span class="op-n">'+esc(o.name)+'</span>'+
     '<span class="side '+o.side+'"><i></i>Con '+sideName(o.side)+' · '+o.lines.length+' variantes</span>'+tag+bar(m)+'</span></button>';
 }
 function bindOpCards(){

@@ -31,9 +31,9 @@ src/data.js        const OPENINGS = [...]  → los repertorios (lo que más se e
 src/school.js      const SECTIONS, SCHOOL  → secciones de Aprender y sus módulos (pasos de teoría y ejercicios)
 src/app/           lógica de la app, en archivos que build.js concatena en este orden (ver Arquitectura):
   store.js         localStorage: progreso Leitner (grade, mastery, stats), racha de días, progreso de Aprender
-  repertoire.js    buildIndex, IDXS, apertura actual (OP/IDX), portadas (l.key, gr.cov, op.cov)
+  repertoire.js    buildIndex (con las posiciones precalculadas PRE), lineFen/lineLast, IDXS, apertura actual (OP/IDX), portadas (l.key, gr.cov, op.cov)
   board.js         Board (tablero interactivo), mini tableros, overlay (marcas y flechas)
-  ui.js            $, tema, íconos, toast, moveList, gameAt y piezas de HTML comunes (opBar, linesHTML, studyLayout…)
+  ui.js            $, tema, íconos, toast, moveList y piezas de HTML comunes (opBar, linesHTML, studyLayout…)
   nav.js           state, historial (nav, restore, goTab), barra inferior y render()
   home.js          Inicio
   learn.js         Aprender: menú de secciones y listas de módulos
@@ -49,7 +49,8 @@ src/manifest.webmanifest
 vendor/chess.js    chess.js 0.10.3 (reglas, SAN, FEN). Global `Chess`. Licencia BSD en vendor/
 assets/pieces/     piezas SVG cburnett (lichess, CC BY-SA 3.0) → se embeben como data URI
 assets/icon.svg    ícono de la app; assets/icons/*.png se generan con `npm run icons` y se versionan
-scripts/build.js   concatena todo en dist/index.html y copia lo de la PWA
+scripts/build.js   concatena todo en dist/index.html (con PRE precalculado) y copia lo de la PWA
+scripts/precompute.js  FEN únicas de cada apertura y, por línea, índices de posición y origen+destino de cada jugada → const PRE
 scripts/validate.js
 scripts/kbnk.js    solucionador exacto de KBNK (análisis retrógrado); --check verifica los módulos con kbn:true
 scripts/serve.js   servidor estático mínimo para probar dist/ en localhost
@@ -99,11 +100,12 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
   - **El orden importa** para lo que corre al cargar: un `const` o `let` tiene que estar definido en un archivo anterior al que lo usa al cargar. Dentro de funciones no importa, porque se ejecutan después. Las declaraciones `function` se elevan y se pueden usar desde cualquier archivo.
   - `main.js` va último porque es el que llama a `render()`.
   - Un archivo nuevo se agrega a `APP` en `build.js`.
+- **Posiciones precalculadas:** `build.js` inyecta `const PRE` (scripts/precompute.js), así al arrancar no se reproducen jugadas con chess.js. Antes tardaba unos 370 ms en la compu y ahora 2 ms. `l.pos[n]` es el índice de la FEN después de n jugadas; `lineFen(l,n)` y `lineLast(l,n)` dan la posición y la última jugada. Los mini tableros leen esa FEN directamente; chess.js queda solo para las jugadas del usuario en el tablero.
 - `buildIndex(op)` (repertoire.js) → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
 - **Tablero propio** (`Board`, board.js): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
 - **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
 - **Navegación** (nav.js): barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|learn|op, `tab`, `sec`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
-- **Selección visual** (ui.js, board.js y repertoire.js): las variantes se eligen con tarjetas de mini tablero (`mini(arr,n,orient)`, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
+- **Selección visual** (ui.js, board.js y repertoire.js): las variantes se eligen con tarjetas de mini tablero (`mini(l,n,orient)` con l = línea, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` (`{line,n}`) = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
 - **Inicio** (home.js): tarjeta de Aprender con el próximo módulo pendiente, y tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
 - **Aprender** (`aprender()` en learn.js, vista `learn`): menú de secciones → lista de módulos (o de aperturas) → `modulePlayer()` (module.js). La pestaña Aprender de cada apertura (`op` + `leccion`) se abre desde la sección Aperturas. Los estados viejos con `view:'school'` se convierten a `learn`. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
 - **Lección** (lesson.js): recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).

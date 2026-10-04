@@ -17,7 +17,7 @@ function examen(){
       '<h2 class="sec">Examen por familia</h2><div class="cards">'+OP.groups.map(gr=>{
         if(!gr.cov) return '';
         const ks=[...new Set(OP.lines.filter(l=>l.group===gr.id).flatMap(l=>IDX.lineNodes[l.id]))], s=stats(ks);
-        return '<button class="card" data-g="'+gr.id+'">'+mini(gr.cov.arr,gr.cov.n,OP.side)+'<span class="cn">'+esc(gShort(gr))+'</span><span class="who">'+ks.length+' posiciones'+(s.due?' · <span style="color:var(--orange)">'+s.due+(s.due===1?' pendiente':' pendientes')+'</span>':'')+'</span></button>';
+        return '<button class="card" data-g="'+gr.id+'">'+mini(gr.cov.line,gr.cov.n,OP.side)+'<span class="cn">'+esc(gShort(gr))+'</span><span class="who">'+ks.length+' posiciones'+(s.due?' · <span style="color:var(--orange)">'+s.due+(s.due===1?' pendiente':' pendientes')+'</span>':'')+'</span></button>';
       }).join('')+'</div>';
     pane.innerHTML=h;
     pane.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>startExam(b.dataset.g));

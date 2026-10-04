@@ -5,19 +5,25 @@
 const f4=fen=>fen.split(' ').slice(0,4).join(' ');
 
 /* ---------- Índice del repertorio ---------- */
+// Las posiciones de cada línea vienen precalculadas del build (PRE, ver scripts/precompute.js):
+// l.pos[n] = índice de la FEN después de n jugadas y l.mv[i] = origen+destino de la jugada i.
+// Así el arranque no reproduce jugadas con chess.js.
+const lineFen=(l,n)=>PRE[l.op].f[l.pos[n]];
+const lineLast=(l,n)=>{if(!n) return null; const m=l.mv[n-1]; return {from:m.slice(0,2),to:m.slice(2,4)};};
 function buildIndex(op){
   const idx={user:{},opp:{},nodes:{},lineNodes:{}};
   op.lines.forEach(l=>{
-    l.arr=l.moves.split(' '); const g=new Chess(); idx.lineNodes[l.id]=[]; let last=null;
+    const pre=PRE[op.id].l[l.id];
+    l.op=op.id; l.arr=l.moves.split(' '); l.pos=pre[0]; l.mv=pre[1].split(' ');
+    idx.lineNodes[l.id]=[];
     l.arr.forEach((m,i)=>{
-      const fen=g.fen(), k=op.id+'|'+f4(fen);
-      if(g.turn()===op.side){
+      const fen=lineFen(l,i), k=op.id+'|'+f4(fen), last=lineLast(l,i);
+      if(fen.split(' ')[1]===op.side){
         idx.user[k]=m;
         if(!idx.nodes[k]) idx.nodes[k]={key:k,fen,san:m,last,note:l.notes[i]||'',line:l,ply:i,prefix:l.arr.slice(0,i)};
         else if(!idx.nodes[k].note&&l.notes[i]) idx.nodes[k].note=l.notes[i];
         if(!idx.lineNodes[l.id].includes(k)) idx.lineNodes[l.id].push(k);
       } else { (idx.opp[k]=idx.opp[k]||new Set()).add(m); }
-      const r=g.move(m); last={from:r.from,to:r.to};
     });
   });
   return idx;
@@ -50,8 +56,8 @@ OPENINGS.forEach(op=>{
     let d=0; ls.forEach(l=>others.forEach(o=>{d=Math.max(d,lcp(l.arr,o.arr));}));
     let n=Math.min(a.length,d+1);
     while(n<d+4&&n<a.length&&ls.every(l=>l.arr[n]===a[n])) n++;
-    gr.cov={arr:a,n};
+    gr.cov={line:ls[0],n};
   });
   let n=op.lines[0].arr.length; op.lines.forEach(l=>{n=Math.min(n,lcp(op.lines[0].arr,l.arr));});
-  op.cov={arr:op.lines[0].arr,n:op.cover||Math.max(n,2)};
+  op.cov={line:op.lines[0],n:op.cover||Math.max(n,2)};
 });

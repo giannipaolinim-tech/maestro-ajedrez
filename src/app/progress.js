@@ -12,7 +12,7 @@ function progreso(){
     h+='<div class="gh"><span>'+esc(gShort(gr))+'</span><small>'+mastery(keys)+'%</small></div><div class="panel">';
     ls.forEach(l=>{
       const ks=IDX.lineNodes[l.id], lm=mastery(ks), errs=ks.reduce((a,k)=>a+((prog[k]||{}).ko||0),0);
-      h+='<div class="prow">'+mini(l.arr,l.key,OP.side)+'<div class="pb"><span class="pn">'+esc(l.name)+'</span>'+bar(lm)+'</div>'+(errs?'<span class="pe">'+errs+' err.</span>':'')+'</div>';
+      h+='<div class="prow">'+mini(l,l.key,OP.side)+'<div class="pb"><span class="pn">'+esc(l.name)+'</span>'+bar(lm)+'</div>'+(errs?'<span class="pe">'+errs+' err.</span>':'')+'</div>';
     });
     h+='</div>';
   });

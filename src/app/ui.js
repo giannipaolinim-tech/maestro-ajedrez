@@ -25,11 +25,6 @@ function moveList(arr,cur,clickable){
   });
   return h;
 }
-function gameAt(arr,n){
-  const g=new Chess(); let last=null;
-  for(let i=0;i<n;i++){const r=g.move(arr[i]); last={from:r.from,to:r.to};}
-  return {g,last};
-}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 // Etiqueta de la jugada número n (1-based) de una línea: "6.h4" o "3...Bf5".
 function plyLabel(arr,n){const i=n-1; return (Math.floor(i/2)+1)+(i%2===0?'.':'...')+arr[i];}
@@ -77,7 +72,7 @@ function ring(p){
 }
 function lineCard(l){
   const m=mastery(IDX.lineNodes[l.id]);
-  return '<button class="card'+(m===100?' done':'')+'" data-line="'+l.id+'">'+mini(l.arr,l.key,OP.side)+'<span class="kmv">'+plyLabel(l.arr,l.key)+'</span><span class="cn">'+esc(l.name)+'</span>'+bar(m)+'</button>';
+  return '<button class="card'+(m===100?' done':'')+'" data-line="'+l.id+'">'+mini(l,l.key,OP.side)+'<span class="kmv">'+plyLabel(l.arr,l.key)+'</span><span class="cn">'+esc(l.name)+'</span>'+bar(m)+'</button>';
 }
 // Filtro por familia + tarjetas de variantes con mini tablero.
 function linesHTML(){

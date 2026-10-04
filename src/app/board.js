@@ -113,14 +113,24 @@ Board.prototype.draw=function(){
   document.head.appendChild(st);
 })();
 const MINI={};
-function mini(arr,n,orient){
-  const ck=orient+n+'|'+arr.slice(0,n).join(' '); if(MINI[ck]) return MINI[ck];
-  const {g,last}=gameAt(arr,n); let h='<div class="mini" aria-hidden="true">';
+// Mini tablero de la línea l después de n jugadas. Lee la FEN precalculada, sin chess.js.
+function mini(l,n,orient){
+  const fen=lineFen(l,n), last=lineLast(l,n), ck=orient+fen+(last?last.from+last.to:'');
+  if(MINI[ck]) return MINI[ck];
+  const B={};
+  fen.split(' ')[0].split('/').forEach((row,ri)=>{
+    let f=0;
+    for(const ch of row){
+      if(ch>='1'&&ch<='8') f+=+ch;
+      else { B[FILES[f]+(8-ri)]=(ch===ch.toUpperCase()?'w':'b')+ch.toUpperCase(); f++; }
+    }
+  });
+  let h='<div class="mini" aria-hidden="true">';
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
-    const file=orient==='w'?FILES[c]:FILES[7-c], rank=orient==='w'?8-r:r+1, sq=file+rank, p=g.get(sq);
+    const file=orient==='w'?FILES[c]:FILES[7-c], rank=orient==='w'?8-r:r+1, sq=file+rank, p=B[sq];
     let cls=(FILES.indexOf(file)+rank)%2===1?'d':'l';
     if(last&&(last.from===sq||last.to===sq)) cls+=' h';
-    if(p) cls+=' '+p.color+p.type.toUpperCase();
+    if(p) cls+=' '+p;
     h+='<i class="'+cls+'"></i>';
   }
   return MINI[ck]=h+'</div>';
