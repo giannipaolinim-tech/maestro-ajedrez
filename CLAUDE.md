@@ -147,7 +147,7 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
   - Stockfish 19 (WASM, npm `stockfish`), a profundidad 20 con 4 candidatas.
   - El token de Lichess va en `credenciales/lichess-token.txt`.
 - **Árbol:** parte de `ROOTS[id]` (por ejemplo, la Caro-Kann desde 1.e4) y llega hasta `--plies` (20 = 10 jugadas).
-  - **Jugadas del rival:** entra una jugada si la posición a la que lleva se alcanza en al menos `--min` (1,2 %, decidido con Gianni) de las partidas de la apertura, **en alguna** de las bases. Así el árbol cubre lo que se juega en todos los niveles. Las transposiciones suman su alcance.
+  - **Jugadas del rival:** entra una jugada si la posición a la que lleva se alcanza en al menos `--min` (1,5 %: Gianni pidió entre 1 y 2 %) de las partidas de la apertura, **en alguna** de las bases. Así el árbol cubre lo que se juega en todos los niveles. Las transposiciones suman su alcance.
   - **Jugadas del usuario:** si el repertorio ya tiene jugada, se respeta, y se marca para revisar si Stockfish la ve más de 60 cp peor que la mejor. Si no tiene, se elige entre las que están a menos de 35 cp de la mejor la más jugada por maestros (o por 2200+ si hay pocas partidas de maestros). Las alternativas cercanas y populares (≥15 %) quedan como posibles puntos de elección.
 - **Salida y caché:** `research/<id>.json` es materia prima. Las líneas, nombres y notas se curan a mano en `src/data.js`. La caché permite rehacerlo sin volver a consultar. Después de curar: `npm run stats` y build.
 

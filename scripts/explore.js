@@ -42,7 +42,7 @@ const CHOICE_SHARE = 0.15; // una alternativa cercana jugada al menos este % se 
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
-const PLIES = +opt('--plies', 20), MIN = +opt('--min', 1.2) / 100, SF_DEPTH = +opt('--sf', 20);
+const PLIES = +opt('--plies', 20), MIN = +opt('--min', 1.5) / 100, SF_DEPTH = +opt('--sf', 20);
 const ONLY_CACHE = args.includes('--solo-cache');
 const WITH_VALUE = ['--plies', '--min', '--sf'];
 const ids = args.filter((a, i) => !a.startsWith('--') && !WITH_VALUE.includes(args[i - 1]));
