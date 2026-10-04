@@ -29,7 +29,21 @@ Sin dependencias de npm: chess.js 0.10.3 está vendorizado en `vendor/`.
 src/head.html      HTML base + todo el CSS (tokens de color oscuro por defecto y claro en :root; fuente Nunito)
 src/data.js        const OPENINGS = [...]  → los repertorios (lo que más se edita)
 src/school.js      const SECTIONS, SCHOOL  → secciones de Aprender y sus módulos (pasos de teoría y ejercicios)
-src/app.js         lógica: índice, tablero, lección, práctica, examen, progreso, navegación
+src/app/           lógica de la app, en archivos que build.js concatena en este orden (ver Arquitectura):
+  store.js         localStorage: progreso Leitner (grade, mastery, stats), racha de días, progreso de Aprender
+  repertoire.js    buildIndex, IDXS, apertura actual (OP/IDX), portadas (l.key, gr.cov, op.cov)
+  board.js         Board (tablero interactivo), mini tableros, overlay (marcas y flechas)
+  ui.js            $, tema, íconos, toast, moveList, gameAt y piezas de HTML comunes (opBar, linesHTML, studyLayout…)
+  nav.js           state, historial (nav, restore, goTab), barra inferior y render()
+  home.js          Inicio
+  learn.js         Aprender: menú de secciones y listas de módulos
+  kbn.js           práctica libre de alfil y caballo (kbnStart, kbnDefense)
+  module.js        modulePlayer: reproductor de módulos (pasos info, move, line, tap, play)
+  lesson.js        pestaña Aprender de una apertura (lista de variantes y lección)
+  practice.js      Práctica (estado P)
+  exam.js          Examen (estado X)
+  progress.js      Progreso de una apertura
+  main.js          arranque y registro de la PWA (va último)
 src/sw.js          service worker de la PWA (build.js completa VERSION y FONT_CSS)
 src/manifest.webmanifest
 vendor/chess.js    chess.js 0.10.3 (reglas, SAN, FEN). Global `Chess`. Licencia BSD en vendor/
@@ -79,20 +93,24 @@ En `line`, `alts[k]` son las otras jugadas igual de buenas para la jugada k del 
 
 validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que no mueve no esté en jaque, soluciones legales y al menos una jugada que cumpla el objetivo. En `move` se compara la SAN sin `+#`; la coronación es siempre a dama. Progreso en `maestro-ajedrez-school` (`{modId: {done, ex: {paso: 1}}}`).
 
-## Arquitectura de app.js
+## Arquitectura de la app (src/app/)
 
-- `buildIndex(op)` → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
-- **Tablero propio** (`Board`): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
+- **Cómo se arma:** `build.js` concatena los archivos de `src/app/` en el orden de la lista `APP` y los envuelve en una sola `(function(){ … })();`. Por eso todos comparten ámbito: una función o variable de un archivo se usa directo desde otro, sin import ni export. No hay bundler ni módulos ES.
+  - **El orden importa** para lo que corre al cargar: un `const` o `let` tiene que estar definido en un archivo anterior al que lo usa al cargar. Dentro de funciones no importa, porque se ejecutan después. Las declaraciones `function` se elevan y se pueden usar desde cualquier archivo.
+  - `main.js` va último porque es el que llama a `render()`.
+  - Un archivo nuevo se agrega a `APP` en `build.js`.
+- `buildIndex(op)` (repertoire.js) → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
+- **Tablero propio** (`Board`, board.js): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
 - **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
-- **Navegación**: barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|learn|op, `tab`, `sec`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
-- **Selección visual**: las variantes se eligen con tarjetas de mini tablero (`mini(arr,n,orient)`, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
-- **Inicio**: tarjeta de Aprender con el próximo módulo pendiente, y tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
-- **Aprender** (`aprender()`, vista `learn`): menú de secciones → lista de módulos (o de aperturas) → `modulePlayer()`. La pestaña Aprender de cada apertura (`op` + `leccion`) se abre desde la sección Aperturas. Los estados viejos con `view:'school'` se convierten a `learn`. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
-- **Lección**: recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
-- **Práctica**: el rival juega solo (480 ms). Si el usuario se equivoca dos veces, se marca la jugada correcta. El modo `__all` elige al azar entre `opp[clave]`.
-- **Examen**: 10 posiciones elegidas por prioridad de caja baja y atraso (con algo de azar), con un intento cada una. Se puede filtrar por grupo.
-- **Progreso / repetición espaciada**: sistema Leitner de cajas 0–6 con `INTERVAL` en milisegundos. Acertar suma 1 caja y fallar vuelve a 0. "Dominado" = caja ≥ 3.
-- Persistencia: `localStorage['maestro-ajedrez-v1']`. Hay una migración de claves viejas sin prefijo hacia `caro-kann|`. El tema (auto/claro/oscuro) va en `maestro-ajedrez-theme`, la última versión vista en `maestro-ajedrez-build`, la última apertura abierta en `maestro-ajedrez-op`, la racha en `maestro-ajedrez-days` y la Escuela en `maestro-ajedrez-school`.
+- **Navegación** (nav.js): barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|learn|op, `tab`, `sec`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
+- **Selección visual** (ui.js, board.js y repertoire.js): las variantes se eligen con tarjetas de mini tablero (`mini(arr,n,orient)`, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
+- **Inicio** (home.js): tarjeta de Aprender con el próximo módulo pendiente, y tarjeta principal con la acción del día (repasar → examen de la apertura con más pendientes; si no, seguir aprendiendo o practicar) y racha de días (`maestro-ajedrez-days`, se marca en `grade()`).
+- **Aprender** (`aprender()` en learn.js, vista `learn`): menú de secciones → lista de módulos (o de aperturas) → `modulePlayer()` (module.js). La pestaña Aprender de cada apertura (`op` + `leccion`) se abre desde la sección Aperturas. Los estados viejos con `view:'school'` se convierten a `learn`. Las marcas van en `#ov` (debajo de las piezas) y las flechas en `#ov2` (encima), dos SVG de 8×8 sobre el tablero.
+- **Lección** (lesson.js): recorre una línea y muestra la nota del ply y, al final, el plan. Se avanza con ▶, con las flechas del teclado o tocando la mitad derecha del tablero (la izquierda vuelve).
+- **Práctica** (practice.js): el rival juega solo (480 ms). Si el usuario se equivoca dos veces, se marca la jugada correcta. El modo `__all` elige al azar entre `opp[clave]`.
+- **Examen** (exam.js): 10 posiciones elegidas por prioridad de caja baja y atraso (con algo de azar), con un intento cada una. Se puede filtrar por grupo.
+- **Progreso / repetición espaciada** (store.js; la pestaña en progress.js): sistema Leitner de cajas 0–6 con `INTERVAL` en milisegundos. Acertar suma 1 caja y fallar vuelve a 0. "Dominado" = caja ≥ 3.
+- Persistencia (store.js): `localStorage['maestro-ajedrez-v1']`. Hay una migración de claves viejas sin prefijo hacia `caro-kann|`. El tema (auto/claro/oscuro) va en `maestro-ajedrez-theme`, la última versión vista en `maestro-ajedrez-build`, la última apertura abierta en `maestro-ajedrez-op`, la racha en `maestro-ajedrez-days` y la Escuela en `maestro-ajedrez-school`.
 - En el inicio, cada apertura muestra cuántas posiciones toca repasar (`stats(keys)` → `{due, fresh}`).
 
 ## PWA y actualizaciones
@@ -147,7 +165,7 @@ Si se agrega verificación con motor, la opción natural es stockfish.js (WASM) 
 1. **APK para Android.** Decidido (2026-10-02): PWA en GitHub Pages con repo público, instalada como WebAPK desde Chrome. Si más adelante quiere un archivo .apk, se genera con PWABuilder o Bubblewrap (TWA) sobre la misma URL, y sigue actualizándose solo. En esta máquina no hay Java ni Android SDK.
 2. Exportar/importar progreso: se ofreció, Gianni dijo que no hace falta por ahora.
 3. Holandesa contra 1.b3 y 1.f4: Gianni todavía no lo pidió, se ofreció.
-4. Más aperturas: se agregan como un objeto nuevo en `OPENINGS` sin tocar `app.js`.
+4. Más aperturas: se agregan como un objeto nuevo en `OPENINGS` sin tocar `src/app/`.
 
 ## Publicación
 

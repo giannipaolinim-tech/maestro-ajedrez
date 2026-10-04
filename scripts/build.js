@@ -13,8 +13,14 @@ for (const f of fs.readdirSync(path.join(root, 'assets/pieces')).filter(f => f.e
   pieces[f.slice(0, 2)] = 'data:image/svg+xml;base64,' + b64;
 }
 
+// Lógica de la app: se concatena en este orden dentro de una sola función, así todos los
+// archivos comparten ámbito. El orden importa para lo que se ejecuta al cargar (un const
+// tiene que estar definido antes de usarse); main.js arranca la app y va último.
+const APP = ['store', 'repertoire', 'board', 'ui', 'nav', 'home', 'learn', 'kbn', 'module', 'lesson', 'practice', 'exam', 'progress', 'main'];
+const app = ['(function(){', ...APP.map(f => rd('src/app/' + f + '.js')), '})();'].join('\n');
+
 const head = rd('src/head.html'), sw = rd('src/sw.js');
-const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), rd('src/school.js'), rd('src/app.js')].join('\n');
+const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), rd('src/school.js'), app].join('\n');
 
 // La versión depende del contenido: si nada cambió, el service worker no se reinstala.
 const v = crypto.createHash('sha256').update(head + body + sw).digest('hex').slice(0, 10);
