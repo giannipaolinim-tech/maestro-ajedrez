@@ -192,6 +192,27 @@ svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stro
 .prow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:2px solid var(--surface2)}
 .prow:last-child{border-bottom:0}
 .prow .mini{width:44px;flex:none;border-radius:5px}
+/* Tu repertorio: puntos de elección y nivel */
+.lvl{margin-bottom:6px}
+.lvl-note{color:var(--muted);font-size:13px;margin:-4px 2px 14px}
+.choice{background:var(--surface);border-radius:var(--r);padding:12px;margin-bottom:12px;box-shadow:0 4px 0 var(--line)}
+.ch-h{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
+.ch-h .mini{width:84px;flex:none}
+.ch-h b{display:block;font-size:16px;font-weight:900;line-height:1.25}
+.ch-h p{margin:4px 0 0;color:var(--muted);font-size:14px;line-height:1.4}
+.ch-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.ch-o{display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px 12px;border-radius:14px;border:2px solid var(--line);background:var(--bg);min-width:0}
+.ch-o.on{border-color:var(--lime);box-shadow:inset 0 0 0 1px var(--lime)}
+.ch-o .mvl{font-size:16px;font-weight:900}
+.ch-o .nm{font-size:14px;font-weight:800}
+.ch-o .ds{font-size:13px;color:var(--muted);line-height:1.35}
+.ch-o .st{font-size:12px;font-weight:800;color:var(--muted)}
+.ch-o .bdgs{display:flex;flex-wrap:wrap;gap:4px}
+.ch-o .bdg{font-size:11px;font-weight:900;padding:2px 7px;border-radius:8px;background:var(--surface2);color:var(--blue)}
+.ch-o .bdg.rec{color:var(--good)}
+.ch-o .sel{font-size:12px;font-weight:900;color:var(--good)}
+.link-row{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.link-row button{color:var(--blue);font-weight:800;font-size:14px}
 .prow .pb{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .prow .pn{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prow .pe{font-size:12px;color:var(--red);font-weight:800;flex:none}

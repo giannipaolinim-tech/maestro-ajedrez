@@ -8,6 +8,11 @@
     "check-kbn": "node --max-old-space-size=4096 scripts/kbnk.js --check",
     "build": "node scripts/validate.js && node scripts/build.js",
     "serve": "node scripts/build.js && node scripts/serve.js",
-    "icons": "node scripts/icons.js"
+    "icons": "node scripts/icons.js",
+    "explore": "node scripts/explore.js",
+    "stats": "node scripts/stats.js"
+  },
+  "devDependencies": {
+    "stockfish": "^19.0.0"
   }
 }

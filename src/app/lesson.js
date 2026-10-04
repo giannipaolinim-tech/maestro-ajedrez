@@ -8,13 +8,16 @@ function leccion(){
   // Lista de variantes
   if(!state.sub){
     pane.innerHTML='<div class="ttl"><button id="toSecs" class="backb" aria-label="Volver a Aperturas">'+ico('back')+'</button><h2>'+esc(OP.name)+'</h2></div>'+
-      '<div class="about"><p>'+OP.intro+'</p><button id="more">Leer más</button></div><p class="lead">Elegí una variante y recorrela jugada por jugada.</p>'+linesHTML();
+      '<div class="about"><p>'+OP.intro+'</p><button id="more">Leer más</button></div>'+
+      choicesHTML(OP)+(OP.choices.length?'<h2 class="sec">Variantes</h2>':'')+
+      '<p class="lead">Elegí una variante y recorrela jugada por jugada.</p>'+linesHTML();
     $('#toSecs').onclick=()=>{ if(state.d>1) history.back(); else nav({view:'learn',sec:'aperturas',sub:null}); };
     $('#more').onclick=()=>{
       const a=$('.about');
       a.classList.toggle('open');
       $('#more').textContent=a.classList.contains('open')?'Leer menos':'Leer más';
     };
+    bindChoices(OP);
     bindLines(id=>nav({sub:{line:id,ply:0}},true)); return;
   }
 

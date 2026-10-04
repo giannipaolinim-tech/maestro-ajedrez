@@ -1,5 +1,6 @@
 // Valida el repertorio: legalidad de todas las jugadas, notas dentro de rango
-// y que en cada posición la jugada del usuario sea única (sin contradicciones entre variantes).
+// y que en cada posición la jugada del usuario sea única (sin contradicciones entre variantes), salvo
+// en los puntos de elección, donde cada opción arma su propio repertorio.
 // Uso: node scripts/validate.js
 const fs = require('fs'), path = require('path');
 const { Chess } = require('../vendor/chess.js');
@@ -8,22 +9,53 @@ const f4 = fen => fen.split(' ').slice(0, 4).join(' ');
 let failed = false;
 for (const op of OPENINGS) {
   const book = {}; let ok = true;
+  const bad = (...a) => { console.log(...a); ok = false; };
   const ids = new Set();
+  // Puntos de elección: posición válida, le toca al usuario, opciones legales y una sola recomendada.
+  const choices = op.choices || [], chKey = {};
+  for (const c of choices) {
+    const g = new Chess();
+    if (!c.at.split(' ').filter(Boolean).every(m => g.move(m))) { bad('ELECCIÓN CON JUGADA ILEGAL', op.id, c.id); continue; }
+    if (g.turn() !== op.side) bad('ELECCIÓN DONDE NO JUEGA EL USUARIO', op.id, c.id);
+    if (!c.title) bad('ELECCIÓN SIN TÍTULO', op.id, c.id);
+    if (!c.options || c.options.length < 2) bad('ELECCIÓN CON MENOS DE DOS OPCIONES', op.id, c.id);
+    else {
+      if (c.options.filter(o => o.def).length !== 1) bad('ELECCIÓN SIN UNA (Y SOLO UNA) RECOMENDADA', op.id, c.id);
+      for (const o of c.options) { const r = new Chess(g.fen()).move(o.move); if (!r || r.san !== o.move) bad('OPCIÓN ILEGAL O MAL ESCRITA (SAN)', op.id, c.id, o.move); }
+      if (new Set(c.options.map(o => o.move)).size !== c.options.length) bad('OPCIONES REPETIDAS', op.id, c.id);
+    }
+    chKey[c.id] = f4(g.fen());
+  }
+  // Jugada de cada línea en cada punto de elección por el que pasa.
+  const picks = {};
   for (const l of op.lines) {
-    if (ids.has(l.id)) { console.log('ID DUPLICADO', op.id, l.id); ok = false; } ids.add(l.id);
-    if (!op.groups.some(g => g.id === l.group)) { console.log('GRUPO INEXISTENTE', op.id, l.id, l.group); ok = false; }
+    if (ids.has(l.id)) bad('ID DUPLICADO', op.id, l.id); ids.add(l.id);
+    if (!op.groups.some(g => g.id === l.group)) bad('GRUPO INEXISTENTE', op.id, l.id, l.group);
     const g = new Chess(), ms = l.moves.split(' ');
+    picks[l.id] = {};
     ms.forEach((m, i) => {
       const k = f4(g.fen()), turn = g.turn(), r = g.move(m);
-      if (!r) { console.log('ILEGAL', op.id, l.id, 'ply', i, m); ok = false; return; }
+      if (!r) { bad('ILEGAL', op.id, l.id, 'ply', i, m); return; }
       if (turn === op.side) {
-        if (book[k] && book[k] !== r.san) { console.log('CONTRADICCIÓN', op.id, l.id, 'ply', i, m, 'vs', book[k]); ok = false; }
-        book[k] = r.san;
+        (book[k] = book[k] || []).push({ san: r.san, line: l.id, ply: i });
+        for (const c of choices) if (chKey[c.id] === k) {
+          picks[l.id][c.id] = r.san;
+          if (!c.options.some(o => o.move === r.san)) bad('LÍNEA QUE NO TOMA NINGUNA OPCIÓN', op.id, l.id, c.id, r.san);
+        }
       }
     });
-    for (const k of Object.keys(l.notes)) if (+k >= ms.length) { console.log('NOTA FUERA DE RANGO', op.id, l.id, k); ok = false; }
+    for (const k of Object.keys(l.notes)) if (+k >= ms.length) bad('NOTA FUERA DE RANGO', op.id, l.id, k);
   }
-  console.log(op.id.padEnd(12), ok ? 'OK ' : 'ERR', op.lines.length, 'variantes,', Object.keys(book).length, 'posiciones del usuario');
+  for (const c of choices) for (const o of c.options || []) if (!op.lines.some(l => picks[l.id][c.id] === o.move)) bad('OPCIÓN SIN VARIANTES', op.id, c.id, o.move);
+  // Unicidad: dos líneas pueden jugar distinto en la misma posición solo si nunca están activas a la vez,
+  // es decir, si en algún punto de elección toman opciones distintas.
+  const exclusive = (a, b) => choices.some(c => c.id in picks[a] && c.id in picks[b] && picks[a][c.id] !== picks[b][c.id]);
+  for (const k of Object.keys(book)) {
+    const es = book[k];
+    for (let i = 0; i < es.length; i++) for (let j = i + 1; j < es.length; j++)
+      if (es[i].san !== es[j].san && !exclusive(es[i].line, es[j].line)) bad('CONTRADICCIÓN', op.id, es[j].line, 'ply', es[j].ply, es[j].san, 'vs', es[i].san, '(' + es[i].line + ')');
+  }
+  console.log(op.id.padEnd(12), ok ? 'OK ' : 'ERR', op.lines.length, 'variantes,', Object.keys(book).length, 'posiciones del usuario' + (choices.length ? ', ' + choices.length + ' elecciones' : ''));
   if (!ok) failed = true;
 }
 

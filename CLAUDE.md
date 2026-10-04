@@ -19,9 +19,11 @@ npm run build              # validate + build
 npm run serve              # build + servidor local en http://localhost:8080 (para probar la PWA)
 npm run icons              # regenera assets/icons/*.png desde assets/icon.svg (usa Edge/Chrome headless)
 python tests/smoke.py      # prueba de humo en Chromium headless (opcional, requiere playwright)
+npm run explore -- [ids]   # árbol de cada apertura con el explorador de Lichess + Stockfish → research/<id>.json (requiere token y npm install)
+npm run stats              # genera src/stats.js (estadísticas por nivel para la app) desde research/cache
 ```
 
-Sin dependencias de npm: chess.js 0.10.3 está vendorizado en `vendor/`.
+La app no tiene dependencias: chess.js 0.10.3 está vendorizado en `vendor/`. La única dependencia de npm es `stockfish` (devDependency, GPL-3.0), que usan solo los scripts de investigación. El build y el workflow no la necesitan.
 
 ## Estructura
 
@@ -33,6 +35,7 @@ src/app/           lógica de la app, en archivos que build.js concatena en este
   store.js         localStorage: progreso Leitner (grade, mastery, stats), racha de días, progreso de Aprender
   repertoire.js    buildIndex (con las posiciones precalculadas PRE), lineFen/lineLast, IDXS, apertura actual (OP/IDX), portadas (l.key, gr.cov, op.cov)
   board.js         Board (tablero interactivo), mini tableros, overlay (marcas y flechas)
+  choices.js       «Tu repertorio»: puntos de elección, nivel (Maestros o rating de Lichess) y estadísticas (STATS)
   ui.js            $, tema, íconos, toast, moveList y piezas de HTML comunes (opBar, linesHTML, studyLayout…)
   nav.js           state, historial (nav, restore, goTab), barra inferior y render()
   home.js          Inicio
@@ -44,6 +47,7 @@ src/app/           lógica de la app, en archivos que build.js concatena en este
   exam.js          Examen (estado X)
   progress.js      Progreso de una apertura
   main.js          arranque y registro de la PWA (va último)
+src/stats.js       const STATS (generado por scripts/stats.js; si no existe, build.js pone uno vacío y la app anda sin números)
 src/sw.js          service worker de la PWA (build.js completa VERSION y FONT_CSS)
 src/manifest.webmanifest
 vendor/chess.js    chess.js 0.10.3 (reglas, SAN, FEN). Global `Chess`. Licencia BSD en vendor/
@@ -52,6 +56,11 @@ assets/icon.svg    ícono de la app; assets/icons/*.png se generan con `npm run 
 scripts/build.js   concatena todo en dist/index.html (con PRE precalculado) y copia lo de la PWA
 scripts/precompute.js  FEN únicas de cada apertura y, por línea, índices de posición y origen+destino de cada jugada → const PRE
 scripts/validate.js
+scripts/explore.js árbol de lo que se juega en cada apertura: Lichess (Masters y por rating) + Stockfish; ver «Investigación»
+scripts/lichess.js acceso al explorador de Lichess con caché (LEVELS, explorer)
+scripts/stats.js   genera src/stats.js
+credenciales/      token de Lichess (lichess-token.txt). Ignorado por git salvo el README: el repo es público
+research/          salida de explore.js (<id>.json) y caché de consultas (cache/explorer.ndjson, cache/stockfish.ndjson); se versiona
 scripts/kbnk.js    solucionador exacto de KBNK (análisis retrógrado); --check verifica los módulos con kbn:true
 scripts/serve.js   servidor estático mínimo para probar dist/ en localhost
 .github/workflows/pages.yml  cada push a main → npm run build → publica dist/ en GitHub Pages
@@ -63,6 +72,9 @@ dist/              build final (no se versiona: lo arma el workflow)
 ```js
 { id, name, short?, cover?, level?, side: "w"|"b", first, sub, intro,   // short = nombre corto (chips); cover = plies de la portada; level:"basico" = aparece en «Para empezar»
   groups: [{ id, name, desc }],
+  choices?: [{ id, at: "e4 c6 d4 d5 Nc3 dxe4 Nxe4",   // punto de elección: posición donde juega el usuario
+              title, desc?,
+              options: [{ move: "Bf5", name, desc?, def?: true }, ...] }],  // def = la recomendada (exactamente una)
   lines: [{ id, group, name,
             moves: "e4 c6 d4 d5 ...",      // SAN separadas por espacio, desde la posición inicial
             notes: { 1: "texto", 3: "..." }, // clave = índice de ply 0-based (0 = primera jugada de blancas)
@@ -71,9 +83,10 @@ dist/              build final (no se versiona: lo arma el workflow)
 
 **Invariantes (los chequea validate.js):**
 1. Todas las jugadas legales.
-2. En cada posición donde juega el usuario (`side`), la jugada es **única** en todo el repertorio, aunque se llegue por transposición. El rival sí puede tener varias opciones.
+2. En cada posición donde juega el usuario (`side`), la jugada es **única** en todo el repertorio, aunque se llegue por transposición. El rival sí puede tener varias opciones. **Excepción, los puntos de elección:** dos líneas pueden jugar distinto en la misma posición solo si en algún punto de elección toman opciones distintas, es decir, si nunca están activas a la vez.
 3. Las notas apuntan a plies que existen.
 4. Ids de línea únicos dentro de la apertura y grupos existentes.
+5. Puntos de elección: `at` legal y le toca al usuario; al menos dos opciones, con SAN exacta, sin repetir y exactamente una `def`; cada opción tiene al menos una variante, y toda línea que pasa por el punto juega una de las opciones.
 
 Las transposiciones se aprovechan a propósito: posiciones idénticas comparten nodo (clave = FEN sin contadores de jugadas).
 
@@ -103,6 +116,7 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
 - **Posiciones precalculadas:** `build.js` inyecta `const PRE` (scripts/precompute.js), así al arrancar no se reproducen jugadas con chess.js. Antes tardaba unos 370 ms en la compu y ahora 2 ms. `l.pos[n]` es el índice de la FEN después de n jugadas; `lineFen(l,n)` y `lineLast(l,n)` dan la posición y la última jugada. Los mini tableros leen esa FEN directamente; chess.js queda solo para las jugadas del usuario en el tablero.
 - `buildIndex(op)` (repertoire.js) → `{ user, opp, nodes, lineNodes }`. `user[clave]` = jugada del repertorio; `opp[clave]` = Set de jugadas del rival; `nodes` = posiciones donde juega el usuario (sirven para examen y progreso). Clave = `opId|fen4`.
 - **Tablero propio** (`Board`, board.js): grilla de divs con pointer events. Se mueve tocando pieza y casilla o arrastrando (pieza "fantasma" `.ghost` en `position:fixed`). `set(g,{anim:true})` desliza la última jugada. Con `canMove` el tablero lleva `.live` (`touch-action:none`); si no, `onTap` recibe los clicks. La orientación sigue a `op.side`.
+- **Puntos de elección y nivel** (repertoire.js, choices.js): `op.allLines` son todas las líneas y `op.lines` las activas. Una línea está activa si en cada punto de elección por el que pasa (`l.picks`) juega la opción elegida (`picked(op,c)`, guardada en `maestro-ajedrez-choices`; si no hay, la `def`). `rebuild(op)` rearma `op.lines`, el índice y las portadas. El resto de la app usa `op.lines` sin saber de elecciones, y el progreso no se pierde al cambiar, porque va por posición. La sección «Tu repertorio» está en la lista de variantes de la pestaña Aprender de cada apertura. El nivel (`maestro-ajedrez-level`: masters, r1…r4) elige qué estadísticas de `STATS` se muestran, permite «Elegir según mi nivel» (la opción con mejor resultado) y hace que en la práctica «Todo el repertorio» el rival elija pesado por lo que se juega en ese nivel.
 - **Estilo**: look de app de juego (azul noche, acentos lima/naranja/azul/violeta, botones con relieve `.btn`). Nada de serif ni estilo Claude.
 - **Navegación** (nav.js): barra inferior fija `#nav` (Inicio · Aprender · Practicar · Examen · Progreso) y, dentro de una apertura, chips `.opbar` para cambiar de apertura. `nav(patch, push)` actualiza `state` (`view`: home|learn|op, `tab`, `sec`, `sub`, `grp`, `d`) y hace `pushState`/`replaceState`, así el botón atrás de Android vuelve dentro de la app. Se apila al entrar a una apertura, a una variante o a un examen; cambiar de pestaña, de apertura o de filtro reemplaza. Inicio hace `history.go(-d)`. Al recargar se restaura desde `history.state`.
 - **Selección visual** (ui.js, board.js y repertoire.js): las variantes se eligen con tarjetas de mini tablero (`mini(l,n,orient)` con l = línea, piezas como clases CSS con background). `l.key` = ply que separa la variante de las demás; `gr.cov` y `op.cov` (`{line,n}`) = portada de familia y apertura (se calculan solos; `op.cover` los fuerza). `state.grp` filtra por familia con chips.
@@ -125,6 +139,17 @@ validate.js chequea cada paso: FEN válida con los dos reyes, que el bando que n
 - El progreso vive en el `localStorage` del origen de GitHub Pages. Es independiente del artifact y de otros navegadores. Gianni aceptó perder el progreso anterior al migrar.
 
 **Restricciones del entorno de publicación (artifact de claude.ai):** un solo archivo, sin imágenes remotas; los scripts externos solo se permiten desde cdnjs, jsdelivr, tailwind y jquery; Google Fonts sí funciona. Por eso todo va embebido. Si se empaqueta como APK, nada de esto aplica, pero conviene mantener el formato de un solo archivo.
+
+## Investigación: de dónde salen las líneas (scripts/explore.js)
+
+- **Fuentes:**
+  - Explorador de Lichess, base Masters y base Lichess (blitz, rápidas y clásicas) en 4 rangos de rating: hasta 1400, 1400–1800, 1800–2200 y 2200+.
+  - Stockfish 19 (WASM, npm `stockfish`), a profundidad 20 con 4 candidatas.
+  - El token de Lichess va en `credenciales/lichess-token.txt`.
+- **Árbol:** parte de `ROOTS[id]` (por ejemplo, la Caro-Kann desde 1.e4) y llega hasta `--plies` (20 = 10 jugadas).
+  - **Jugadas del rival:** entra una jugada si la posición a la que lleva se alcanza en al menos `--min` (1,2 %, decidido con Gianni) de las partidas de la apertura, **en alguna** de las bases. Así el árbol cubre lo que se juega en todos los niveles. Las transposiciones suman su alcance.
+  - **Jugadas del usuario:** si el repertorio ya tiene jugada, se respeta, y se marca para revisar si Stockfish la ve más de 60 cp peor que la mejor. Si no tiene, se elige entre las que están a menos de 35 cp de la mejor la más jugada por maestros (o por 2200+ si hay pocas partidas de maestros). Las alternativas cercanas y populares (≥15 %) quedan como posibles puntos de elección.
+- **Salida y caché:** `research/<id>.json` es materia prima. Las líneas, nombres y notas se curan a mano en `src/data.js`. La caché permite rehacerlo sin volver a consultar. Después de curar: `npm run stats` y build.
 
 ## Repertorio actual (decisiones confirmadas por Gianni)
 

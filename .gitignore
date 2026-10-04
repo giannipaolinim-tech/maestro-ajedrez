@@ -2,3 +2,7 @@ node_modules/
 dist/
 tests/ultima_captura.png
 .claude/settings.local.json
+
+# Credenciales: solo se versiona el README (el repo es público)
+credenciales/*
+!credenciales/README.md

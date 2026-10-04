@@ -58,6 +58,13 @@ function streak(){
   return {n,today};
 }
 
+/* ---------- Elecciones de repertorio y nivel ---------- */
+// choicesSel = {opId: {choiceId: jugada}}; level = base de datos para las estadísticas (masters, r1…r4).
+const CHOICES_KEY='maestro-ajedrez-choices', LEVEL_KEY='maestro-ajedrez-level';
+let choicesSel={}; try{choicesSel=JSON.parse(lsGet(CHOICES_KEY)||'{}')||{};}catch(e){choicesSel={};}
+const saveChoices=()=>lsSet(CHOICES_KEY,JSON.stringify(choicesSel));
+let level=lsGet(LEVEL_KEY)||'masters';
+
 /* ---------- Progreso de Aprender (módulos y ejercicios resueltos) ---------- */
 const SCHOOL_KEY='maestro-ajedrez-school';
 let sch={}; try{sch=JSON.parse(lsGet(SCHOOL_KEY)||'{}')||{};}catch(e){sch={};}

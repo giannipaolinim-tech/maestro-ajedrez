@@ -17,14 +17,16 @@ for (const f of fs.readdirSync(path.join(root, 'assets/pieces')).filter(f => f.e
 // Lógica de la app: se concatena en este orden dentro de una sola función, así todos los
 // archivos comparten ámbito. El orden importa para lo que se ejecuta al cargar (un const
 // tiene que estar definido antes de usarse); main.js arranca la app y va último.
-const APP = ['store', 'repertoire', 'board', 'ui', 'nav', 'home', 'learn', 'kbn', 'module', 'lesson', 'practice', 'exam', 'progress', 'main'];
+const APP = ['store', 'repertoire', 'board', 'ui', 'choices', 'nav', 'home', 'learn', 'kbn', 'module', 'lesson', 'practice', 'exam', 'progress', 'main'];
 const app = ['(function(){', ...APP.map(f => rd('src/app/' + f + '.js')), '})();'].join('\n');
 
 const head = rd('src/head.html'), sw = rd('src/sw.js');
 // Posiciones de cada línea precalculadas (ver scripts/precompute.js): la app no reproduce jugadas al arrancar.
 const OPENINGS = new Function(rd('src/data.js') + ';return OPENINGS;')();
 const PRE = 'const PRE=' + JSON.stringify(precompute(OPENINGS)) + ';';
-const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), PRE, rd('src/school.js'), app].join('\n');
+// Estadísticas del explorador de Lichess (las genera scripts/stats.js); sin ese archivo, la app anda sin números.
+const STATS = fs.existsSync(path.join(root, 'src/stats.js')) ? rd('src/stats.js') : 'const STATS={levels:[],ops:{}};';
+const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), PRE, STATS, rd('src/school.js'), app].join('\n');
 
 // La versión depende del contenido: si nada cambió, el service worker no se reinstala.
 const v = crypto.createHash('sha256').update(head + body + sw).digest('hex').slice(0, 10);

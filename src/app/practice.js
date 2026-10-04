@@ -7,7 +7,9 @@ let P=null;
 function practica(){
   if(!state.sub){
     $('#pane').innerHTML=ttl('practica')+'<p class="lead">Jugás con '+sideName(OP.side)+'. La app mueve las '+sideName(OP.side==='w'?'b':'w')+' y te corrige si salís del repertorio.</p>'+
-      '<button class="allcard" data-line="__all">'+ico('shuffle')+'<span><b>Todo el repertorio</b><span>El rival elige al azar entre todas sus opciones</span></span></button>'+linesHTML();
+      '<button class="allcard" data-line="__all">'+ico('shuffle')+'<span><b>Todo el repertorio</b><span>'+(LEVELS.length?'El rival elige como se juega en el nivel que marques':'El rival elige al azar entre todas sus opciones')+'</span></span></button>'+
+      (LEVELS.length?levelChips():'')+linesHTML();
+    bindLevels();
     bindLines(id=>{P=null; nav({sub:{line:id}},true);}); return;
   }
   if(!P||P.lineId!==state.sub.line||P.op!==OP.id) startPractice(); else mountPractice();
@@ -43,11 +45,17 @@ function expected(){
   if(P.lineId==='__all') return IDX.user[keyOf(P.g)]||null;
   const l=OP.lines.find(x=>x.id===P.lineId); return l.arr[P.hist.length]||null;
 }
-// Próxima jugada del rival: en «todo el repertorio», una al azar entre sus opciones.
+// Próxima jugada del rival: en «todo el repertorio», una al azar entre sus opciones,
+// pesada por lo que se juega en el nivel elegido (si hay estadísticas; si no, todas igual).
 function oppNext(){
   if(P.lineId==='__all'){
     const s=IDX.opp[keyOf(P.g)]; if(!s) return null;
-    const a=[...s];
+    const a=[...s], st=posStats(OP.id,f4(P.g.fen()),level);
+    if(st&&st[0]){
+      const wts=a.map(m=>Math.max((st[1][m]||[0])[0],st[0]*0.01));
+      let r=Math.random()*wts.reduce((x,y)=>x+y,0);
+      for(let i=0;i<a.length;i++){r-=wts[i]; if(r<0) return a[i];}
+    }
     return a[Math.floor(Math.random()*a.length)];
   }
   const l=OP.lines.find(x=>x.id===P.lineId); return l.arr[P.hist.length]||null;
