@@ -19,6 +19,9 @@
 //   2. Si no, entre las jugadas a menos de NEAR_CP de la mejor según Stockfish, la más jugada por los
 //      maestros (o en 2200+ si hay pocas partidas de maestros). Las otras candidatas cercanas y
 //      populares quedan anotadas como posibles puntos de elección.
+//
+// Las ramas que quedan debajo del corte se prolongan hasta PLIES por la jugada más común del rival
+// (en el nivel donde esa rama importa), sin abrir más ramas: así toda línea llega a 10 jugadas.
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const { Chess } = require('../vendor/chess.js');
 const root = path.join(__dirname, '..');
@@ -27,8 +30,9 @@ const root = path.join(__dirname, '..');
 const { LEVELS, f4, explorer, token, ndjsonCache, stats: lxStats } = require('./lichess.js');
 // Punto de partida de cada apertura: desde dónde se cuenta el alcance (100 %).
 // first = jugadas del rival que se consideran en esa posición (el resto queda fuera de la apertura).
+// alts = alternativas del usuario a explorar también (candidatas a punto de elección): {camino: [jugadas]}.
 const ROOTS = {
-  'caro-kann': { root: 'e4' },
+  'caro-kann': { root: 'e4', alts: { 'e4 c6 d4 d5 Nc3 dxe4 Nxe4': ['Nd7'], 'e4 c6 d4 d5 e5': ['c5'] } },
   viena: { root: 'e4 e5' },
   holandesa: { root: '', first: ['d4', 'c4', 'Nf3', 'g3'] },
   italiana: { root: 'e4 e5' },
@@ -107,10 +111,11 @@ async function explore(op) {
   console.log('\n== ' + op.name + ' (' + op.id + ')');
   for (let ply = layer.values().next().value.path.length; ply < PLIES && layer.size; ply++) {
     const next = new Map();
-    const add = (fen, pth, reach) => {
+    // ext = prolongación: la rama ya quedó debajo del corte y solo se sigue por la jugada más común.
+    const add = (fen, pth, reach, ext) => {
       const k = f4(fen), n = next.get(k);
-      if (n) { for (const l in reach) n.reach[l] += reach[l]; } // transposición: se suman los alcances
-      else next.set(k, { fen, path: pth, reach: { ...reach } });
+      if (n) { for (const l in reach) n.reach[l] += reach[l]; n.ext = n.ext && ext; } // transposición: se suman los alcances
+      else next.set(k, { fen, path: pth, reach: { ...reach }, ext });
     };
     for (const node of layer.values()) {
       const g = new Chess(node.fen), turn = g.turn();
@@ -120,6 +125,7 @@ async function explore(op) {
       const lvs = turn === op.side ? LEVELS.filter(l => l.id === 'masters' || l.id === 'r4') : LEVELS;
       for (const lv of lvs) { const s = await ex(lv, node.fen); if (s) stats[lv.id] = s; }
       const out = { path: node.path.join(' '), fen: node.fen, turn, reach: round(node.reach), stats: compact(stats) };
+      if (node.ext) out.ext = true;
       nodes.push(out);
       if (turn === op.side) {
         // Jugada del usuario
@@ -139,7 +145,12 @@ async function explore(op) {
         const alts = near.filter(c => c.san !== move && pop(c.san) >= CHOICE_SHARE);
         if (alts.length) choices.push({ path: out.path, move, alts: alts.map(a => a.san) });
         const g2 = new Chess(node.fen); g2.move(move);
-        add(g2.fen(), node.path.concat(move), node.reach);
+        add(g2.fen(), node.path.concat(move), node.reach, node.ext);
+        // Alternativas configuradas: se exploran como una rama más del usuario.
+        for (const alt of (cfg.alts || {})[out.path] || []) {
+          const g3 = new Chess(node.fen);
+          if (g3.move(alt)) { add(g3.fen(), node.path.concat(alt), node.reach, node.ext); (out.alts = out.alts || []).push(alt); }
+        }
       } else {
         // Jugadas del rival: entran las que llevan a una posición alcanzada en al menos MIN en alguna base
         const sans = new Set();
@@ -149,7 +160,7 @@ async function explore(op) {
         const tot = {};
         for (const lv of LEVELS) { const s = stats[lv.id]; if (!s) continue; tot[lv.id] = ply === 0 && cfg.first ? cfg.first.reduce((a, x) => a + ((s.moves[x] || [0])[0]), 0) : s.n; }
         const kids = [];
-        for (const san of sans) {
+        if (!node.ext) for (const san of sans) {
           const reach = {}; let best = 0;
           for (const lv of LEVELS) {
             const s = stats[lv.id];
@@ -157,6 +168,21 @@ async function explore(op) {
             best = Math.max(best, reach[lv.id]);
           }
           if (best >= MIN) { const g2 = new Chess(node.fen); if (g2.move(san)) { add(g2.fen(), node.path.concat(san), reach); kids.push(san); } }
+        }
+        // Prolongación: si ninguna jugada pasa el corte (o la rama ya venía prolongada), se sigue solo por la
+        // más jugada en el nivel donde esta rama importa (el de mayor alcance), hasta llegar a PLIES.
+        if (!kids.length) {
+          const lvId = Object.keys(node.reach).sort((a, b) => node.reach[b] - node.reach[a])[0];
+          let s = stats[lvId];
+          if (!s || s.n < MIN_GAMES) s = Object.values(stats).sort((a, b) => b.n - a.n)[0];
+          const top = s && s.n >= MIN_GAMES ? Object.entries(s.moves).sort((a, b) => b[1][0] - a[1][0])[0] : null;
+          const g2 = new Chess(node.fen);
+          if (top && g2.move(top[0])) {
+            const reach = {};
+            for (const lv of LEVELS) { const t = stats[lv.id]; reach[lv.id] = t && t.n ? node.reach[lv.id] * (t.moves[top[0]] || [0])[0] / t.n : 0; }
+            add(g2.fen(), node.path.concat(top[0]), reach, true);
+            kids.push(top[0]); out.extKid = true;
+          }
         }
         out.kids = kids;
       }

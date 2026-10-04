@@ -1,0 +1,590 @@
+[
+ {
+  "path": "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3 Qxd3 e6",
+  "plies": 20,
+  "reach": {
+   "masters": 0.1907,
+   "r1": 0.002,
+   "r2": 0.0095,
+   "r3": 0.0392,
+   "r4": 0.0907
+  },
+  "kind": "cubierta",
+  "line": "cl-main",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6 Nf3 Be7 cxd5 Nxd5 Bd3 Nc6 O-O O-O Re1 Bf6",
+  "plies": 20,
+  "reach": {
+   "masters": 0.0426,
+   "r1": 0,
+   "r2": 0,
+   "r3": 0.0007,
+   "r4": 0.0063
+  },
+  "kind": "cubierta",
+  "line": "pn-main",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6 c3 Nf6 Bf4 Bg4 Qb3 Qd7 Nd2 e6 Ngf3 Bd6 Bxd6 Qxd6",
+  "plies": 20,
+  "reach": {
+   "masters": 0.0282,
+   "r1": 0.0002,
+   "r2": 0.001,
+   "r3": 0.0052,
+   "r4": 0.0187
+  },
+  "kind": "cubierta",
+  "line": "cm-main",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Nf3 Nc6 Bd3 Bg4 c3 e6",
+  "plies": 12,
+  "reach": {
+   "masters": 0.0004,
+   "r1": 0.0014,
+   "r2": 0.009,
+   "r3": 0.028,
+   "r4": 0.0185
+  },
+  "kind": "nueva",
+  "line": "pn-main",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Nc3 Nf6 Nf3 Nc6",
+  "plies": 10,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0225,
+   "r2": 0.0261,
+   "r3": 0.0189,
+   "r4": 0.0049
+  },
+  "kind": "nueva",
+  "line": "pn-main",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 Bc4 d5 exd5 cxd5 Bb5+ Bd7 Bxd7+ Nxd7",
+  "plies": 10,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0261,
+   "r2": 0.0172,
+   "r3": 0.0047,
+   "r4": 0.0002
+  },
+  "kind": "cubierta",
+  "line": "ot-bc4",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 Be3 Nd7 O-O Ne7 c4 dxc4 Na3 Nd5 Nxc4 Be7",
+  "plies": 20,
+  "reach": {
+   "masters": 0.026,
+   "r1": 0,
+   "r2": 0,
+   "r3": 0.0001,
+   "r4": 0.002
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 14
+ },
+ {
+  "path": "e4 c6 d4 d5 f3 e6 Nc3 Bb4",
+  "plies": 8,
+  "reach": {
+   "masters": 0.0213,
+   "r1": 0.0037,
+   "r2": 0.0052,
+   "r3": 0.0111,
+   "r4": 0.0258
+  },
+  "kind": "cubierta",
+  "line": "ot-fant",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Nf3 Nc6 c3 Nf6",
+  "plies": 10,
+  "reach": {
+   "masters": 0.0021,
+   "r1": 0.0068,
+   "r2": 0.0178,
+   "r3": 0.024,
+   "r4": 0.0119
+  },
+  "kind": "nueva",
+  "line": "pn-main",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 h4 h5 Bd3 Bxd3 Qxd3 e6 Bg5 Qa5+ Nd2 c5",
+  "plies": 16,
+  "reach": {
+   "masters": 0.0238,
+   "r1": 0.0001,
+   "r2": 0.0006,
+   "r3": 0.0036,
+   "r4": 0.0189
+  },
+  "kind": "nueva",
+  "line": "av-h4",
+  "shared": 14
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Nf3 Nc6 Nc3 Bg4 Be2 e6",
+  "plies": 12,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0211,
+   "r2": 0.0232,
+   "r3": 0.0105,
+   "r4": 0.0012
+  },
+  "kind": "nueva",
+  "line": "pn-main",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 Qf3 d5",
+  "plies": 4,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0229,
+   "r2": 0.009,
+   "r3": 0.0021,
+   "r4": 0.0004
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 d3 d5 Nd2 e5 Ngf3 Bd6",
+  "plies": 8,
+  "reach": {
+   "masters": 0.0223,
+   "r1": 0.0005,
+   "r2": 0.0015,
+   "r3": 0.0072,
+   "r4": 0.0228
+  },
+  "kind": "cubierta",
+  "line": "ot-kia",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Bd3 Qxd4",
+  "plies": 10,
+  "reach": {
+   "masters": 0.0004,
+   "r1": 0.0223,
+   "r2": 0.0096,
+   "r3": 0.0052,
+   "r4": 0.0028
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 8
+ },
+ {
+  "path": "e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3 Qxf3 e6 d4 Nf6",
+  "plies": 12,
+  "reach": {
+   "masters": 0.0175,
+   "r1": 0.0028,
+   "r2": 0.004,
+   "r3": 0.0108,
+   "r4": 0.0222
+  },
+  "kind": "nueva",
+  "line": "ot-2n",
+  "shared": 10
+ },
+ {
+  "path": "e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3 Qxf3 e6 d3 Nf6",
+  "plies": 12,
+  "reach": {
+   "masters": 0.019,
+   "r1": 0.0021,
+   "r2": 0.0019,
+   "r3": 0.0068,
+   "r4": 0.022
+  },
+  "kind": "cubierta",
+  "line": "ot-2n",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 e5 d5",
+  "plies": 4,
+  "reach": {
+   "masters": 0.0002,
+   "r1": 0.0218,
+   "r2": 0.0103,
+   "r3": 0.0051,
+   "r4": 0.002
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Nf3 Nc6 c4 Nf6",
+  "plies": 10,
+  "reach": {
+   "masters": 0.0009,
+   "r1": 0.0059,
+   "r2": 0.0151,
+   "r3": 0.0215,
+   "r4": 0.011
+  },
+  "kind": "nueva",
+  "line": "pn-main",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 Nf3 d5 exd5 cxd5 Bb5+ Nc6",
+  "plies": 8,
+  "reach": {
+   "masters": 0.0001,
+   "r1": 0.0208,
+   "r2": 0.0179,
+   "r3": 0.0067,
+   "r4": 0.0013
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 O-O Nc6 c3 Bg6",
+  "plies": 14,
+  "reach": {
+   "masters": 0.0203,
+   "r1": 0.0003,
+   "r2": 0.0005,
+   "r3": 0.0011,
+   "r4": 0.0049
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 10
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6 c3 Nf6 h3 g6",
+  "plies": 12,
+  "reach": {
+   "masters": 0.0138,
+   "r1": 0.0007,
+   "r2": 0.0037,
+   "r3": 0.0113,
+   "r4": 0.0201
+  },
+  "kind": "nueva",
+  "line": "cm-main",
+  "shared": 10
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 Be3 Nd7 O-O Ne7 c4 dxc4 Na3 Nd5 Bg5 Be7",
+  "plies": 20,
+  "reach": {
+   "masters": 0.0199,
+   "r1": 0,
+   "r2": 0,
+   "r3": 0,
+   "r4": 0.0003
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 14
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Bd3 Bxd3 Qxd3 Qb6 O-O c5",
+  "plies": 14,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0196,
+   "r2": 0.0197,
+   "r3": 0.0145,
+   "r4": 0.0055
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 8
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nd2 e6 Nb3 Nd7 Nf3 h6 Be2 Ne7 O-O g5",
+  "plies": 16,
+  "reach": {
+   "masters": 0.0196,
+   "r1": 0,
+   "r2": 0,
+   "r3": 0.0004,
+   "r4": 0.0043
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 Nf3 Nd7 Bd3 Bxd3 Qxd3 e6",
+  "plies": 16,
+  "reach": {
+   "masters": 0.0161,
+   "r1": 0.0028,
+   "r2": 0.0084,
+   "r3": 0.0195,
+   "r4": 0.0188
+  },
+  "kind": "cubierta",
+  "line": "cl-nf3",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3 Qxf3 e6 Be2 Nf6 O-O Nbd7 d4 dxe4 Nxe4 Nxe4 Qxe4 Nf6",
+  "plies": 20,
+  "reach": {
+   "masters": 0.0186,
+   "r1": 0,
+   "r2": 0.0001,
+   "r3": 0.0008,
+   "r4": 0.0068
+  },
+  "kind": "nueva",
+  "line": "ot-2n",
+  "shared": 10
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 g4 Be4 f3 Bg6",
+  "plies": 10,
+  "reach": {
+   "masters": 0.0043,
+   "r1": 0.0059,
+   "r2": 0.0076,
+   "r3": 0.0181,
+   "r4": 0.0185
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 d4 d5 exd5 cxd5 Nf3 Nc6 Bb5 e6 O-O Bd6",
+  "plies": 12,
+  "reach": {
+   "masters": 0.0006,
+   "r1": 0.0112,
+   "r2": 0.0176,
+   "r3": 0.0139,
+   "r4": 0.0049
+  },
+  "kind": "nueva",
+  "line": "pn-main",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 f4 d5 e5 Bf5 Nf3 e6",
+  "plies": 8,
+  "reach": {
+   "masters": 0.0004,
+   "r1": 0.0035,
+   "r2": 0.0132,
+   "r3": 0.0174,
+   "r4": 0.0051
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 Nf3 d5 e5 Bg4 d4 e6 h3 Bxf3 Qxf3 c5",
+  "plies": 12,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0174,
+   "r2": 0.0161,
+   "r3": 0.0052,
+   "r4": 0.0007
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 f4 e6",
+  "plies": 8,
+  "reach": {
+   "masters": 0.0003,
+   "r1": 0.0099,
+   "r2": 0.0173,
+   "r3": 0.0154,
+   "r4": 0.0035
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 c4 d5 exd5 cxd5 cxd5 Nf6 Nc3 Nxd5",
+  "plies": 10,
+  "reach": {
+   "masters": 0.0173,
+   "r1": 0.0034,
+   "r2": 0.0074,
+   "r3": 0.013,
+   "r4": 0.0159
+  },
+  "kind": "cubierta",
+  "line": "ot-c4",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 Nf3 d5 e5 Bg4 d4 e6 Be2 c5",
+  "plies": 10,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0138,
+   "r2": 0.0169,
+   "r3": 0.0082,
+   "r4": 0.0015
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 Be3 Nd7 c4 dxc4",
+  "plies": 14,
+  "reach": {
+   "masters": 0.0161,
+   "r1": 0,
+   "r2": 0,
+   "r3": 0.0004,
+   "r4": 0.0031
+  },
+  "kind": "nueva",
+  "line": "av-short",
+  "shared": 12
+ },
+ {
+  "path": "e4 c6 Bc4 d5 exd5 cxd5 Bb3 Nf6 d4 Nc6",
+  "plies": 10,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0118,
+   "r2": 0.0159,
+   "r3": 0.0094,
+   "r4": 0.0008
+  },
+  "kind": "nueva",
+  "line": "ot-bc4",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 Qh5 d5",
+  "plies": 4,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0158,
+   "r2": 0.0022,
+   "r3": 0.0003,
+   "r4": 0
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 Nh3 e6 Nf4 Bd6",
+  "plies": 14,
+  "reach": {
+   "masters": 0.0158,
+   "r1": 0.0001,
+   "r2": 0.0004,
+   "r3": 0.0027,
+   "r4": 0.0095
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 10
+ },
+ {
+  "path": "e4 c6 Nf3 d5 d3 dxe4 dxe4 Qxd1+ Kxd1 Nf6",
+  "plies": 10,
+  "reach": {
+   "masters": 0.0142,
+   "r1": 0.0155,
+   "r2": 0.0045,
+   "r3": 0.0028,
+   "r4": 0.0127
+  },
+  "kind": "nueva",
+  "line": "cl-main",
+  "shared": 2
+ },
+ {
+  "path": "e4 c6 Bc4 d5 exd5 cxd5 Bb3 Nf6 Nf3 Nc6",
+  "plies": 10,
+  "reach": {
+   "masters": 0,
+   "r1": 0.0153,
+   "r2": 0.0129,
+   "r3": 0.0044,
+   "r4": 0.0003
+  },
+  "kind": "nueva",
+  "line": "ot-bc4",
+  "shared": 6
+ },
+ {
+  "path": "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 Bc4 e6 N1e2 Nf6",
+  "plies": 14,
+  "reach": {
+   "masters": 0.0153,
+   "r1": 0.0001,
+   "r2": 0.0003,
+   "r3": 0.002,
+   "r4": 0.0059
+  },
+  "kind": "cubierta",
+  "line": "cl-bc4",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 Nc3 e6 g4 Bg6 Nge2 c5 h4 h5 Nf4 Bh7 Nxh5 Nc6 dxc5 Bxc5",
+  "plies": 20,
+  "reach": {
+   "masters": 0.0153,
+   "r1": 0,
+   "r2": 0.0001,
+   "r3": 0.0004,
+   "r4": 0.0025
+  },
+  "kind": "extiende",
+  "line": "av-nc3",
+  "shared": null
+ },
+ {
+  "path": "e4 c6 d4 d5 e5 Bf5 h4 h5 c4 e6 Nc3 Ne7 Nge2 Nd7",
+  "plies": 14,
+  "reach": {
+   "masters": 0.0151,
+   "r1": 0,
+   "r2": 0.0001,
+   "r3": 0.0006,
+   "r4": 0.0046
+  },
+  "kind": "nueva",
+  "line": "av-h4",
+  "shared": 8
+ }
+]
