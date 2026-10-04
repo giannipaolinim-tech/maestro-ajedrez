@@ -34,6 +34,9 @@ function token() {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const stats = { requests: 0 };
+// Pausa entre consultas: se adapta a los límites de Lichess. Cada 429 la alarga (hasta 6 s) y
+// una racha larga sin cortes la acorta de a poco (no baja de 700 ms).
+let gap = 1000, okStreak = 0;
 // Estadísticas de una posición en una base: {n, w, d, b, moves: {san: [n, w, d, b]}}.
 // Con onlyCache (o sin token) devuelve null si no está en la caché.
 async function explorer(level, fen, onlyCache) {
@@ -45,17 +48,22 @@ async function explorer(level, fen, onlyCache) {
   let url = 'https://explorer.lichess.ovh/masters?';
   if (level.ratings) { url = 'https://explorer.lichess.ovh/lichess?'; q.set('variant', 'standard'); q.set('speeds', SPEEDS); q.set('ratings', level.ratings); q.set('recentGames', '0'); }
   for (let tries = 0; ; tries++) {
-    await sleep(250);
+    await sleep(gap);
     let res;
     try { res = await fetch(url + q, { headers: { Authorization: 'Bearer ' + tk } }); }
     catch (e) { if (tries > 5) throw e; await sleep(5000); continue; }
-    if (res.status === 429) { console.log('  Lichess pide esperar (429): pausa de 60 s'); await sleep(60000); continue; }
+    if (res.status === 429) {
+      gap = Math.min(6000, Math.round(gap * 1.5)); okStreak = 0;
+      console.log('  Lichess pide esperar (429): pausa de 60 s; desde ahora ' + gap + ' ms entre consultas');
+      await sleep(60000); continue;
+    }
     if (res.status === 401) throw new Error('Lichess rechazó el token (401). Revisá credenciales/lichess-token.txt');
     if (!res.ok) { if (tries > 5) throw new Error('Lichess ' + res.status + ' en ' + url + q); await sleep(5000); continue; }
     const j = await res.json(), moves = {};
     for (const m of j.moves || []) moves[m.san] = [m.white + m.draws + m.black, m.white, m.draws, m.black];
     const v = { n: j.white + j.draws + j.black, w: j.white, d: j.draws, b: j.black, moves };
     c.set(k, v); stats.requests++;
+    if (++okStreak >= 300) { gap = Math.max(700, Math.round(gap * 0.9)); okStreak = 0; }
     return v;
   }
 }
