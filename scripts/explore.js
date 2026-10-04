@@ -115,7 +115,10 @@ async function explore(op) {
     for (const node of layer.values()) {
       const g = new Chess(node.fen), turn = g.turn();
       const stats = {};
-      for (const lv of LEVELS) { const s = await ex(lv, node.fen); if (s) stats[lv.id] = s; }
+      // Donde juega el usuario alcanza con Maestros y 2200+ (lo que usa la elección); el resto de los
+      // niveles para los puntos de elección lo completa scripts/stats.js. Ahorra consultas a Lichess.
+      const lvs = turn === op.side ? LEVELS.filter(l => l.id === 'masters' || l.id === 'r4') : LEVELS;
+      for (const lv of lvs) { const s = await ex(lv, node.fen); if (s) stats[lv.id] = s; }
       const out = { path: node.path.join(' '), fen: node.fen, turn, reach: round(node.reach), stats: compact(stats) };
       nodes.push(out);
       if (turn === op.side) {

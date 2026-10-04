@@ -35,8 +35,8 @@ function token() {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const stats = { requests: 0 };
 // Pausa entre consultas: se adapta a los límites de Lichess. Cada 429 la alarga (hasta 6 s) y
-// una racha larga sin cortes la acorta de a poco (no baja de 700 ms).
-let gap = 1000, okStreak = 0;
+// una racha larga sin cortes la acorta de a poco (no baja de 1,2 s; con 1 s, Lichess corta a las ~30 consultas).
+let gap = 2000, okStreak = 0;
 // Estadísticas de una posición en una base: {n, w, d, b, moves: {san: [n, w, d, b]}}.
 // Con onlyCache (o sin token) devuelve null si no está en la caché.
 async function explorer(level, fen, onlyCache) {
@@ -63,7 +63,7 @@ async function explorer(level, fen, onlyCache) {
     for (const m of j.moves || []) moves[m.san] = [m.white + m.draws + m.black, m.white, m.draws, m.black];
     const v = { n: j.white + j.draws + j.black, w: j.white, d: j.draws, b: j.black, moves };
     c.set(k, v); stats.requests++;
-    if (++okStreak >= 300) { gap = Math.max(700, Math.round(gap * 0.9)); okStreak = 0; }
+    if (++okStreak >= 300) { gap = Math.max(1200, Math.round(gap * 0.9)); okStreak = 0; }
     return v;
   }
 }
