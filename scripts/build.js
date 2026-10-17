@@ -28,8 +28,8 @@ const PRE = 'const PRE=' + JSON.stringify(precompute(OPENINGS)) + ';';
 const STATS = fs.existsSync(path.join(root, 'src/stats.js')) ? rd('src/stats.js') : 'const STATS={levels:[],ops:{}};';
 const body = [rd('vendor/chess.js'), 'const PIECES=' + JSON.stringify(pieces) + ';', rd('src/data.js'), PRE, STATS, rd('src/school.js'), app].join('\n');
 
-// La versión depende del contenido: si nada cambió, el service worker no se reinstala.
-const v = crypto.createHash('sha256').update(head + body + sw).digest('hex').slice(0, 10);
+// La versión depende del contenido (incluido el manifest): si nada cambió, el service worker no se reinstala.
+const v = crypto.createHash('sha256').update(head + body + sw + rd('src/manifest.webmanifest')).digest('hex').slice(0, 10);
 const d = new Date(), pad = n => String(n).padStart(2, '0');
 const date = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const BUILD = { v, date };

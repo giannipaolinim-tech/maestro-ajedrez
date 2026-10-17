@@ -3,7 +3,7 @@
   "short_name": "Maestro",
   "description": "Lecciones, práctica guiada y exámenes con repetición espaciada para repertorios de aperturas.",
   "lang": "es",
-  "id": "./",
+  "id": "/maestro-ajedrez/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
